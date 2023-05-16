@@ -1,0 +1,16 @@
+bioE_GAMM.r
+bioenegetics.r
+bioenegetics_orginal.R
+ci_cr_stacked_gamm.r
+ci_stacked_gamm.r
+cost_index_1hr.r
+cost_index_time_of_day.r
+depth_temp_acel_plot.r
+depth_use_gamm.r
+dtac_plot.r
+herbet_dunlop_2020_rmr.r
+raincloud.r
+raincloud_plot.r
+temp_depth_stacked_plot.r
+temp_use_gamm.r
+temp_use_gamm_id.r
