@@ -32,7 +32,7 @@ library(visreg)
 # 
 # ful <- read_rds(here("Saved Data",
 #                      "BioE_lt.rds"))
-# 
+# # 
 # glimpse(ful)
 # ##### SUBSET OUT ONLY TEMP DATA and determine daily temp FOR 2017 - 2021-------
 # 
@@ -143,7 +143,7 @@ m19 <- bam(mean_temp ~ fish_basin  +
                k = c(20, 4)), method = "fREML",
            family = Gamma(link = "log"),
            data = ful_temp, 
-           select = TRUE, 
+           select = TRUE,
            discrete = TRUE, 
            rho = r1, 
            AR.start = ful_temp$start_event
@@ -239,8 +239,8 @@ fits <- predict.bam(m19, newdata = dat_2,
                     type = "response", se = TRUE, discrete = FALSE, 
                     exclude = c("s(floy_tag, year)"),
                     newdata.guaranteed = TRUE)
-fits <- predict.bam(m19, newdata = dat_2, 
-                    type = "response", se = TRUE, discrete = FALSE, 
+fits <- predict.bam(m19, newdata = dat_2,
+                    type = "response", se = TRUE, discrete = FALSE,
                     exclude = c("s(floy_tag, year)"),
                     newdata.guaranteed = TRUE)
 
@@ -333,7 +333,7 @@ ggplot(predicts) +
   ), alpha = 0.5, size = 3) +
   
   geom_line(
-    aes(x = doy_id, y = fit, colour = fish_basin), size = 1) +
+    aes(x = doy_id, y = fit, colour = fish_basin), linewidth = 1) +
   geom_ribbon( 
     aes(ymin = lower,
         ymax = upper,

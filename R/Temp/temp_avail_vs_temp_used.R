@@ -112,7 +112,7 @@ ggplot(data = temp_combo, aes(x = doy_id, y = mean_temp)) +
   labs(x = "Day of Year", 
        y = "Daily Temperature (°C) Used") -> p
 
-# p
+p
 
 
 
@@ -134,18 +134,79 @@ sum_temp_comb <- temp_combo %>%
   )
 
 
+rect_summer <- tibble(
+  season = "Summer",
+  xmin = 32,
+  xmax = 123,
+  ymin = -Inf,
+  ymax = Inf
+)
+
+rect_winter <- tibble(
+  season = "Winter",
+  xmin = 220,
+  xmax = 305,
+  ymin = -Inf,
+  ymax = Inf
+)
+
+season_line <- tibble(
+  xmark = c(32, 123, 220, 305)
+)
+
 ggplot(data = sum_temp_comb, aes(x = doy_id, 
                                  y = mean_fish_temp)) + 
-  geom_linerange(aes(ymin = mean_fish_temp - sem,
-                     ymax = mean_fish_temp + sem,
-                     group = fish_basin)) +
+  geom_rect(data = rect_summer, aes(xmin = xmin,
+                                    xmax = xmax,
+                                    ymin = ymin,
+                                    ymax = ymax),
+            fill = NA,
+            colour = "black",
+            linewidth = 0.8,
+            linetype = 3,
+            # alpha = 0.75,
+            inherit.aes = FALSE) +
+  geom_rect(data = rect_winter, aes(xmin = xmin,
+                                    xmax = xmax,
+                                    ymin = ymin,
+                                    ymax = ymax),
+            fill = NA,
+            linewidth = 0.8,
+            # alpha = 0.75,
+            colour = "black",
+            linetype = 3,
+            inherit.aes = FALSE) +
+  # geom_vline(data = season_line,
+  #            aes(xintercept = xmark),
+  #            # fill = NA,
+  #            colour = "black",
+  #            linewidth = 0.8,
+  #            linetype = 3,
+  #            # alpha = 0.75,
+  #            # inherit.aes = FALSE
+  #            ) +
+
+  geom_text(
+    aes(x = xmin + 30, y = 12.25, label = season),
+    data = rect_summer,
+    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+  geom_text(
+    aes(x = xmin + 32, y = 12.25, label = season),
+    data = rect_winter,
+    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+  # geom_linerange(aes(ymin = mean_fish_temp - sem,
+  #                    ymax = mean_fish_temp + sem,
+  #                    group = fish_basin)) +
   geom_point(aes(color = fish_basin), 
              size = 3, 
              alpha = 0.5
-             ) + 
-  geom_ribbon(aes(ymin = min_temp, 
-                  ymax = max_temp), 
-              alpha = 0.15) + 
+  ) + 
+  geom_ribbon(aes(
+    ymin = min_temp, 
+    # ymax = max_temp
+    ymax = max_temp_adjust
+  ), 
+  alpha = 0.15) + 
   
   geom_line(data = predicts, 
             aes(x = doy_id, y = fit, colour = fish_basin), 
@@ -156,8 +217,8 @@ ggplot(data = sum_temp_comb, aes(x = doy_id,
                   x = doy_id, y = fit,
                   fill = fish_basin), alpha = 0.25) +
   scale_y_continuous(breaks = seq(0, 27.5, 2.5), 
-                     # limits = c(0, 13)
-                     ) +
+                     limits = c(0, 13)
+  ) +
   scale_x_continuous(breaks = seq(25, 350, 65), 
                      label = month_label) +
   scale_colour_viridis_d(name = "Basin",
@@ -174,8 +235,11 @@ ggplot(data = sum_temp_comb, aes(x = doy_id,
         legend.text = element_text(hjust = 0.5)) +
   labs(x = "Date",
        y = "Daily Temperature (°C)") -> p1
-p1
+# p1
 
+
+write_rds(x = p1, here("Plot Objects", 
+                       "mdt_used_GAMM_available_13.rds"))
 
 cols <- rev(rainbow(6)[-6])
 
@@ -200,10 +264,10 @@ sum_temp_comb %>%
   #                   ymax = max_temp, group = fish_basin), 
   #               width = 0.15) + 
   scale_colour_gradientn(colours = alpha(cols, f = 0.35), 
-                       name = "Water Temperature (°C)",
-                       # breaks = seq(2, 10, 2), 
-                       guide = guide_colorbar(frame.colour = "black", 
-                                              ticks.colour = "black")
+                         name = "Water Temperature (°C)",
+                         # breaks = seq(2, 10, 2), 
+                         guide = guide_colorbar(frame.colour = "black", 
+                                                ticks.colour = "black")
   ) +
   # scale_colour_viridis_c(
   #   name = "Water Temperature (°C)",
@@ -224,8 +288,8 @@ ggsave(filename = here("Plots",
 
 ggsave(filename = here("Plots", 
                        "thermal habitat available", 
-                       "mdt_used_ribbon_available_sem.png"), 
-       height = 7, width = 11, plot = p1)
+                       "mdt_used_ribbon_available_13.png"), 
+       height = 8.5, width = 11, plot = p1)
 
 ggsave(filename = here("Plots", 
                        "thermal habitat available", 
