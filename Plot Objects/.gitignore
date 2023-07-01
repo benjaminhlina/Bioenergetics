@@ -3,3 +3,7 @@ daily_rmr_GLMM_violin_plot.rds
 daily_temp_GAMM_plot.rds
 daily_temp_GLMM_violin_plot.rds
 mdt_used_GAMM_available_13.rds
+daily_smr_GAMM_plot.rds
+daily_smr_GLMM_violin_plot.rds
+scope_for_activity_gamm_plot.rds
+scope_for_activity_lm_plot.rds
