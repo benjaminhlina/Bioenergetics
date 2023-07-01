@@ -204,7 +204,7 @@ ggplot(data = met_summary, aes(x = doy_id, y = mean_temps)) +
 # ----- plotting temp and SMR as biplot with theroitcal example ------
 
 ms_cf <- met_form %>%
-  select(temp, fish_basin, wgt, m_std_cf)
+  dplyr::select(temp, fish_basin, wgt, m_std_cf)
 
 glimpse(smr)
 ggplot() + 
