@@ -31,10 +31,10 @@
 }
 # bring in RDS -----
 # 
-# ful <- read_rds(here("Saved Data",
-#                      "BioE_lt.rds"))
-# 
-# glimpse(ful)
+ful <- read_rds(here("Saved Data",
+                     "BioE_lt.rds"))
+
+glimpse(ful)
 ##### SUBSET OUT ONLY RMR/M_Swim DATA and determine daily temp FOR 2017 - 2021-------
 
 
@@ -75,6 +75,8 @@
 
 ful_rmr <- read_rds(here("Saved Data", 
                          "Daily_RMR.rds"))
+
+glimpse(ful_rmr)
 # look at data to see what dist it fits 
 
 descdist(ful_rmr$mean_rmr) 

@@ -1,10 +1,7 @@
 # load packages ----
 
-library(dplyr)
 library(ggplot2)
-library(ggh4x)
 library(here)
-library(lemon)
 library(patchwork)
 library(readr)
 
@@ -18,18 +15,30 @@ gam <- read_rds(here("Plot Objects",
 vi <- read_rds(here("Plot Objects", 
                     "daily_temp_GLMM_violin_plot.rds"))
 
-gam$layers[[3]] <- NULL
-gam$layers[[3]] <- NULL
+gam <- gam + 
+  theme(
+    plot.tag.position = c(0.075, 0.97),
+    plot.tag = element_text(face = "bold")
+  )
+# gam$layers[[3]] <- NULL
+# gam$layers[[3]] <- NULL
 
 vi_2 <- vi + 
-  theme(legend.position = "none")
+  theme(
+    legend.position = "none",
+    plot.tag.position = c(0.075, 0.97),
+    plot.tag = element_text(face = "bold")
+  )
 
 
-p3 <- gam / vi_2
+p3 <- gam / vi_2 + 
+  plot_annotation(tag_suffix = ")", 
+                  tag_levels = "a")
+
 p3
 
 ggsave(plot = p3, filename = here("plots",
                                   "Combined GAMM and Violin",
-                                 "gamm_violin_temp_doy.png"), 
+                                  "gamm_violin_temp_doy.png"), 
        width = 11,
        height = 7 * 2)
