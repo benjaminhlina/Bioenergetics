@@ -1,0 +1,5 @@
+daily_rmr_GAMM_plot.rds
+daily_rmr_GLMM_violin_plot.rds
+daily_temp_GAMM_plot.rds
+daily_temp_GLMM_violin_plot.rds
+mdt_used_GAMM_available_13.rds
