@@ -133,15 +133,10 @@ glimpse(ful_rmr)
 
 
 # -----------------------START GAMMS -------------------------------
-m <- bam(mean_rmr ~ 
-           # fish_basin + 
-           s(doy_id, 
-             # by = fish_basin, 
-             bs = "cc", k = 15) +
-           s(floy_tag, 
-             # by = fish_basin,
-             bs = c("re")),
-           # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3)),  
+m <- bam(mean_rmr ~ fish_basin + 
+           s(doy_id, by = fish_basin, bs = "cc", k = 20) +
+           s(floy_tag, by = fish_basin, bs = c("re")) + 
+           ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3)),  
          method = "fREML",
          family = Gamma(link = "identity"),
          data = ful_rmr, 
@@ -155,13 +150,17 @@ r1
 
 
 
-m1 <- update(m, 
+m1 <- update(m, . ~ fish_basin  + 
+               s(doy_id, by = fish_basin, bs = "cc", k = 20) +
+               s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
+                 k = c(20, 4)) +
+               ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3)), 
              discrete = TRUE,
              rho = r1, 
              AR.start = ful_rmr$start_event
 )
 # check model fit -----
-par(mfrow = c(2, 2))
+# par(mfrow = c(2, 2))
 gam.check(m)
 # summary(m)
 gam.check(m1)
@@ -194,23 +193,23 @@ m_glance
 
 # =---- save summaries ------
 
-# overall_parm %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "RMR results",
-#                                   "gamm_rmr_param_overall.xlsx"))
-# ind_parm %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "RMR results",
-#                                   "gamm_rmr_param_ind.xlsx"))
-# 
-# smoothers %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "RMR results",
-#                                   "gamm_rmr_smoothers.xlsx"))
-# m_glance %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "RMR results",
-#                                   "gamm_rmr_model_fit.xlsx"))
+overall_parm %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "RMR results",
+                                  "gamm_rmr_param_overall.xlsx"))
+ind_parm %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "RMR results",
+                                  "gamm_rmr_param_ind.xlsx"))
+
+smoothers %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "RMR results",
+                                  "gamm_rmr_smoothers.xlsx"))
+m_glance %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "RMR results",
+                                  "gamm_rmr_model_fit.xlsx"))
 # pridicted model --------
 
 # create new datafreame with dummmy variables for RE for plotting 
@@ -224,8 +223,7 @@ glimpse(dat_2)
 
 # use prediction to get interpolated points 
 fits <- predict.bam(m1, newdata = dat_2, 
-                    # type = "response", 
-                    se = TRUE, discrete = FALSE,  
+                    type = "response", se = TRUE, discrete = FALSE,  
                     exclude = c("s(floy_tag)"),
                     newdata.guaranteed = TRUE)
 
@@ -233,8 +231,7 @@ fits <- predict.bam(m1, newdata = dat_2,
 
 # combine fits with dataframe for plotting and calc upper and lower 
 # add in month abb for plotting 
-predicts <- data.frame(dat_2, fits) %>%
-  as_tibble() %>% 
+predicts <- data.frame(dat_2, fits) %>% 
   mutate(lower = fit - 1.96 * se.fit,
          upper = fit + 1.96 * se.fit, 
          month_abb = month(date, label = TRUE, abbr = TRUE), 
@@ -247,10 +244,6 @@ predicts <- data.frame(dat_2, fits) %>%
 
 # double check that predicts looks correct 
 glimpse(predicts) 
-
-
-write_rds(predicts, here("Saved Data", 
-                         "rmr_gamm_predict.rds"))
 
 # calculate daily mean temp by fish basin 
 # ful %>%

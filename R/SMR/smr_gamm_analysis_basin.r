@@ -157,10 +157,10 @@ coef_v %>%
 
 
 p9
-# ggsave(here("Plots", 
-#             "coefficient of varation", 
-#             "smr_winter_daily_mean_cv.png"), plot = p9, 
-#        height = 7, width = 11)
+ggsave(here("Plots", 
+            "coefficient of varation", 
+            "smr_winter_daily_mean_cv.png"), plot = p9, 
+       height = 7, width = 11)
 
 
 
@@ -173,32 +173,21 @@ cv_season <- coef_v %>%
 
 cv_season
 
-glimpse(ful_temp) 
-
-ful_temp <- ful_temp %>% 
-  mutate(
-    year = factor(year)
-  )
-
-
-
-
+glimpse(ful_temp)
 # possibly add temp used to then model what temps fish may see 
 # -----------------------START GAMMS -------------------------------
-m <- bam(mean_smr ~ 
-           s(doy_id, bs = "cc", k = 15) +
-           s(floy_tag, bs = c( "re"), 
-             k = c(20)) +
-           s(year, bs = "re"), 
-         
+m <- bam(mean_smr ~ fish_basin +
+           s(doy_id, by = fish_basin, bs = "cc", k = 15) +
+           s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
+             k = c(20, 4)) +
+           ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(15, 3)),
          method = "fREML",
-         family = gaussian(link = "log"),
+         family = Gamma(link = "log"),
          data = ful_temp, 
          select = TRUE
 )
 
 acf(resid_gam(m))
-
 
 r1 <- itsadug::start_value_rho(m, plot = TRUE, lag = 17)
 r1
@@ -206,19 +195,16 @@ r1
 
 m1 <- update(m, discrete = TRUE, 
              rho = r1, 
-             AR.start = start_event)
+             AR.start = ful_temp$start_event)
 
 
 # check model fit -----
 par(mfrow = c(2, 2))
-gam.check(m1)
-plot(m1)
-
+gam.check(m)
 
 # look at overall effect terms -----
 m_overall <- anova.gam(m1, freq = FALSE)
 m_overall
-
 # grab parametic overall effect 
 overall_parm <- m_overall$pTerms.table %>% 
   as_tibble(rownames = "terms") %>% 
@@ -243,29 +229,29 @@ smoothers
 m_glance
 
 
-# write_rds(m1, file = here("model objects", 
-#                           "smr_gamm_model.rds")
-# )
-# 
-# # =---- save summaries 
-# 
-# overall_parm %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "SMR results",
-#                                   "gamm_smr_param_overall.xlsx"))
-# ind_parm %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "SMR results",
-#                                   "gamm_smr_param_ind.xlsx"))
-# 
-# smoothers %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "SMR results",
-#                                   "gamm_smr_smoothers.xlsx"))
-# m_glance %>%
-#   openxlsx::write.xlsx(here::here("results",
-#                                   "SMR results",
-#                                   "gamm_smr_model_fit.xlsx"))
+write_rds(m1, file = here("model objects", 
+                          "smr_gamm_model.rds")
+)
+
+# =---- save summaries 
+
+overall_parm %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "SMR results",
+                                  "gamm_smr_param_overall.xlsx"))
+ind_parm %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "SMR results",
+                                  "gamm_smr_param_ind.xlsx"))
+
+smoothers %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "SMR results",
+                                  "gamm_smr_smoothers.xlsx"))
+m_glance %>%
+  openxlsx::write.xlsx(here::here("results",
+                                  "SMR results",
+                                  "gamm_smr_model_fit.xlsx"))
 # pridicted model --------
 
 # create new datafreame with dummmy variables for RE for plotting 
@@ -279,9 +265,8 @@ glimpse(dat_2)
 
 # use prediction to get interpolated points 
 fits <- predict.bam(m1, newdata = dat_2, discrete = FALSE,
-                    # type = "response", 
-                    se = TRUE, 
-                    exclude = c("s(floy_tag)", "s(year)"),
+                    type = "response", se = TRUE, 
+                    exclude = c("s(floy_tag, year)"),
                     newdata.guaranteed = TRUE)
 
 
@@ -290,10 +275,8 @@ fits <- predict.bam(m1, newdata = dat_2, discrete = FALSE,
 # add in month abb for plotting 
 predicts <- data.frame(dat_2, fits) %>% 
   mutate(
-    
-    lower = exp(fit - 1.96 * se.fit),
-    upper = exp(fit + 1.96 * se.fit), 
-    fit = exp(fit),
+    lower = fit - 1.96 * se.fit,
+    upper = fit + 1.96 * se.fit, 
     month_abb = month(date, label = TRUE, abbr = TRUE), 
     month_abb = factor(month_abb, 
                        levels = c("May", "Jun", "Jul", 
@@ -315,11 +298,6 @@ predicts <- data.frame(dat_2, fits) %>%
 
 # double check that predicts looks correct 
 glimpse(predicts) 
-
-
-
-write_rds(predicts, here("Saved Data", 
-                         "smr_gamma_predict.rds"))
 
 # calculate daily mean temp by fish basin 
 ful_temp %>%
