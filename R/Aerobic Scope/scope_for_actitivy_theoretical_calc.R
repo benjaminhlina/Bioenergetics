@@ -67,7 +67,8 @@ ful_temp <- ful %>%
                         levels = c("May", "June", "July",
                                    "August", "September", "October",
                                    "Novemeber", "December", "January",
-                                   "February", "March", "April"))
+                                   "February", "March", "April")), 
+         aerobic_scope = mean_mmr - mean_smr
   ) %>%
   arrange(month) %>%
   mutate(doy_id = days(date)) %>%
