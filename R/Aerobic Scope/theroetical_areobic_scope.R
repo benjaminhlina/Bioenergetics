@@ -36,7 +36,10 @@ dat <- read_rds(here("Saved Data",
 
 glimpse(dat)
 
+dat <- dat %>% 
+  filter(!(floy_tag %in% "07478"))
 
+dat
 
 # ---- model ----
 
@@ -87,7 +90,7 @@ m <- bam(aerobic_scope ~  s(doy_id, bs = "cc", k = 15) +
            s(floy_tag,  bs = "re") + 
            s(year, bs = "re"), 
          # family = gaussian(link = "log"), 
-         family = Gamma(link = "log"),
+         family = Gamma(link = "inverse"),
          method = "fREML",
          data = dat, 
          select = TRUE
@@ -162,10 +165,10 @@ predicts <- data.frame(dat_2, fits) %>%
   mutate(
     
     # lower = fit - 1.96 * se.fit,
-    lower = exp(fit - 1.96 * se.fit),
+    lower = 1/(fit - 1.96 * se.fit),
     # upper = fit + 1.96 * se.fit, 
-    upper = exp(fit + 1.96 * se.fit),
-    fit = exp(fit)
+    upper = 1/(fit + 1.96 * se.fit),
+    fit = 1/(fit)
     ) %>% 
   arrange(doy_id)
 
