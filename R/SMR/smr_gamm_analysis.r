@@ -30,10 +30,10 @@
 
 # bring in RDS -----
 # 
-# ful <- read_rds(here("Saved Data",
-#                      "BioE_lt.rds"))
+ful <- read_rds(here("Saved Data",
+                     "BioE_lt.rds"))
 # 
-# glimpse(ful)
+glimpse(ful)
 # 
 # # ful_temp %>%
 # #   filter(floy_tag %in% "07478"))
