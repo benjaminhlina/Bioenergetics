@@ -60,10 +60,15 @@ glimpse(ful_mmr)
 
 
 # -----------------------START GAMMS -------------------------------
-m <- bam(mean_mmr ~ fish_basin + 
-           s(doy_id, by = fish_basin, bs = "cc", k = 14) +
-           s(floy_tag, by = fish_basin, bs = c("re")) + 
-           ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(14, 3)),  
+m <- bam(mean_mmr ~ 
+           # fish_basin + 
+           s(doy_id, 
+             # by = fish_basin,
+             bs = "cc", k = 15) +
+           s(floy_tag, 
+             # by = fish_basin, 
+             bs = c("re")), 
+           # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(14, 3)),  
          method = "fREML",
          family = Gamma(link = "inverse"),
          data = ful_mmr, 
@@ -84,7 +89,7 @@ m1 <- update(m, discrete = TRUE,
 
 # check model fit -----
 par(mfrow = c(2, 2))
-gam.check(m)
+gam.check(m1)
 
 plot(m1)
 
@@ -121,24 +126,24 @@ write_rds(m1, file = here("model objects",
 
 # =---- save summaries 
 
-overall_parm %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "MMR results",
-                                  "gamm_mmr_param_overall.xlsx"))
-ind_parm %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "MMR results",
-                                  "gamm_mmr_param_ind.xlsx"))
-
-smoothers %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "MMR results",
-                                  "gamm_mmr_smoothers.xlsx"))
-m_glance %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "MMR results",
-                                  "gamm_mmr_model_fit.xlsx"))
-# pridicted model --------
+# overall_parm %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "MMR results",
+#                                   "gamm_mmr_param_overall.xlsx"))
+# ind_parm %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "MMR results",
+#                                   "gamm_mmr_param_ind.xlsx"))
+# 
+# smoothers %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "MMR results",
+#                                   "gamm_mmr_smoothers.xlsx"))
+# m_glance %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "MMR results",
+#                                   "gamm_mmr_model_fit.xlsx"))
+# # pridicted model --------
 
 # create new datafreame with dummmy variables for RE for plotting 
 dat_2 <- ful_mmr %>% 
@@ -153,7 +158,7 @@ glimpse(dat_2)
 fits <- predict.bam(m1, newdata = dat_2, discrete = FALSE,
                     # type = "response",
                     se = TRUE, 
-                    exclude = c("s(floy_tag, year)"),
+                    exclude = c("s(floy_tag)", "s(year)"),
                     newdata.guaranteed = TRUE)
 
 
@@ -190,6 +195,9 @@ predicts <- data.frame(dat_2, fits) %>%
 # glimpse(predicts) 
 predicts
 
+
+write_rds(predicts, here("Saved Data",
+                         "mmr_gamm_predict.rds"))
 
 # calculate daily mean mmr by fish basin 
 ful_mmr %>%

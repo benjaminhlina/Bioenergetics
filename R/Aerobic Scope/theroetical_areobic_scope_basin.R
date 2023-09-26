@@ -38,6 +38,10 @@ glimpse(dat)
 
 
 
+dat <- dat %>% 
+  filter(!(floy_tag %in% "07478"))
+
+dat
 # ---- model ----
 
 aec <- dat$aerobic_scope
@@ -83,15 +87,21 @@ month_labels
 
 #  --------- start GAMM--------
 m <- bam(aerobic_scope ~ 
-           fish_basin + 
-           s(doy_id, by = fish_basin, bs = "cc", k = 15) + 
-           # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(14, 3)) + 
-           s(floy_tag, by = fish_basin, bs = "re") + 
-           s(year, by = fish_basin, bs = "re"), 
+           fish_basin +
+           s(doy_id,
+             by = fish_basin,
+             bs = "cc", k = 15) + 
+           # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(15, 3)) +
+           s(floy_tag, 
+             by = fish_basin,
+             bs = "re") + 
+           s(year,
+             by = fish_basin,
+             bs = "re"), 
          # family = gaussian(link = "log"), 
-         family = Gamma(link = "log"),
+         family = Gamma(link = "inverse"),
          method = "fREML",
-         data = dat, 
+         data = dat,
          select = TRUE
 )
 
@@ -110,9 +120,9 @@ m1 <- update(m,
 
 
 par(mfrow = c(2, 2))
-gam.check(m)
+# gam.check(m)
 gam.check(m1)
-plot(m)
+plot(m1)
 
 
 # -------- predict from model ---------
@@ -163,19 +173,20 @@ fits <- predict.gam(m1, newdata = dat_2,
 # combine fits with dataframe for plotting and calc upper and lower 
 # add in month abb for plotting 
 predicts <- data.frame(dat_2, fits) %>% 
+  as_tibble() %>% 
   mutate(
     
     # lower = fit - 1.96 * se.fit,
-    lower = exp(fit - 1.96 * se.fit),
-    # upper = fit + 1.96 * se.fit, 
-    upper = exp(fit + 1.96 * se.fit),
-    fit = exp(fit)
+    lower = 1 / (fit - 1.96 * se.fit),
+    # upper = fit + 1.96 * se.fit,
+    upper = 1 / (fit + 1.96 * se.fit),
+    fit = 1 / (fit)
     ) %>% 
   arrange(doy_id)
 
 
-write_rds(predicts, here("Saved Data", 
-                         "aerobic_scope_gamma_predict_basin.rds"))
+# write_rds(predicts, here("Saved Data", 
+#                          "aerobic_scope_gamma_predict_basin.rds"))
 # figure out where your shading for summer and winter goes 
 predicts %>% 
   group_by(season) %>% 
@@ -230,11 +241,11 @@ ggplot() +
             alpha = 0.75,
             inherit.aes = FALSE) +
   geom_text(
-    aes(x = xmin + 30, y = 231.25, label = season),
+    aes(x = xmin + 30, y = 176.25, label = season),
     data = rect_summer,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 32, y = 231.25, label = season),
+    aes(x = xmin + 32, y = 176.25, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_point(data = as, aes(x = doy_id, y = mean_as, 
@@ -259,6 +270,9 @@ ggplot() +
   scale_x_continuous(breaks = seq(25, 350, 65), 
                      label = month_labels) +
   scale_y_continuous(breaks = seq(0, 225, 25)) +
+  coord_cartesian(
+    ylim = c(65, 175)
+  ) + 
   theme_classic(base_size = 15) +
   theme(panel.grid = element_blank(),
         strip.text = element_blank(),
@@ -273,12 +287,12 @@ ggplot() +
 p
 
 write_rds(p, here("Plot Objects", 
-                  "areobic_activity_gamm_plot.rds"))
+                  "areobic_activity_gamm_plot_basin.rds"))
 
 
 ggsave(plot = p, filename = here("plots",
                                  "Daily GAMM Plots", 
-                                 "aerobic_scope_doy_gamm.png"), width = 11,
+                                 "aerobic_scope_doy_gamm_basin.png"), width = 11,
        height = 8.5)
 
 
