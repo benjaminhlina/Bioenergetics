@@ -1,9 +1,8 @@
-# load packages ----
 {
   library(broom.mixed)
   library(dplyr)
   library(fitdistrplus)
-  library(emmeans)
+  library(forcats)
   library(ggplot2)
   library(ggh4x)
   library(gamm4)
@@ -12,8 +11,8 @@
   library(itsadug)
   library(lubridate)
   library(lemon)
-  library(janitor)
   library(lme4)
+  library(janitor)
   library(mgcv)
   library(multcomp)
   library(openxlsx)
@@ -24,120 +23,82 @@
   library(tidymv)
   library(tidyr)
   library(visreg)
-  source(here("R", 
-              "Cleaning and Calculations", 
+  source(here("R",
+              "Cleaning and Calculations",
               "julian_date_reorder.r"))
 }
-# bring in RDS -----
 
-rmr <- read_rds(here("Saved Data", 
-                     "Daily_RMR.rds")) %>% 
-  arrange(date)
-
-mmr <- read_rds(here("Saved Data", 
-                     "Daily_MMR.rds")) %>% 
-  arrange(date)
-
-# view dataframes 
-glimpse(rmr)
-glimpse(mmr)
+# ---- bring in to calcuate daily theroritcal scope ---- 
 
 
-# ----- determine daily mean for mmr and rmr -----
-rmr_sum <- rmr %>%
-  group_by(fish_basin, date, doy, week, month, season, year) %>% 
-  summarise(mean_rmr = mean(mean_rmr)) %>% 
-  group_by()
+dat <- read_rds(here("Saved Data",
+                     "Daily_theoratical_smr_mmr.rds")) 
 
-mmr_sum <- mmr %>%
-  group_by(fish_basin, date, doy, week, month, season, year) %>% 
-  summarise(mean_mmr = mean(mean_mmr), 
-            mean_temp = mean(mean_temp)) %>% 
-  group_by()
-
-glimpse(mmr_sum)
-glimpse(rmr_sum)
-
-tail(mmr)
-tail(rmr)
+glimpse(dat)
 
 
-# -------- calculate activity scope -------
-fs <- mmr_sum %>% 
-  left_join(rmr_sum, by = c("fish_basin", 
-                            "date",
-                            # "doy_id", 
-                            "doy", 
-                            "week", "month",
-                            "season",
-                            "year"
-  ))
+
+# ---- model ----
+
+aec <- dat$aerobic_scope
+
+descdist(aec)
+
+ggplot(data = dat, aes(x = aerobic_scope)) + 
+  geom_histogram()
+
+fit_gamma <- fitdist(aec, distr = "gamma", method = "mme")
+fit_norm <- fitdist(aec, distr = "norm", method = "mle")
+
+plot(fit_gamma)
+plot(fit_norm)
+
+dat <- dat %>% 
+  group_by(year) %>% 
+  arrange(year, doy_id) %>% 
+  mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE, 
+                               false = FALSE), 
+         year = factor(year)) %>% 
+  ungroup() %>% 
+  arrange(date, start_event)
 
 
-# cacluate activity scope 
 
-fs <- fs %>% 
-  mutate(fs = mean_mmr - mean_rmr, 
-         doy_id = days(date), 
-         month_abb = month(date, label = TRUE, abbr = TRUE), 
-         month_abb = factor(month_abb, 
-                            levels = c("May", "Jun", "Jul", 
-                                       "Aug", "Sep", "Oct",
-                                       "Nov", "Dec", "Jan",
-                                       "Feb", "Mar", "Apr")), 
-         season = forcats::fct_relevel(season, "Spring", "Summer", 
-                                       "Fall", "Winter")) %>% 
-  filter(fs >= 0)
-
-fs %>% 
+dat %>% 
   filter(doy_id %in% seq(25, 350, 65)) %>% 
+  mutate(
+    month_abb = month(date, label = TRUE)
+  ) %>% 
   group_by(month_abb) %>% 
   summarise() %>% 
+  mutate(
+    month_abb = fct_relevel(month_abb, "May", 
+                                     "Jul", "Oct", "Dec", "Feb", 
+                                     "Apr")
+  ) %>% 
+  arrange(month_abb) %>% 
   .$month_abb -> month_labels
 
-
-glimpse(fs)
 month_labels
-# look at distibution ------
-ggplot(data = fs, aes(x = fs)) + 
-  geom_histogram() 
 
-fs_scope <- fs %>% 
-  filter(fs != is.na(fs)) %>% 
-  .$fs
-
-descdist(fs_scope)
-
-
-fit_gamma <- fitdist(fs_scope, distr = "norm", method = "mle")
-plot(fit_gamma)
-
-fs <- fs %>% 
-  arrange(year, doy_id) %>% 
-  group_by(year) %>% 
-  mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE, 
-                               false = FALSE)) %>% 
-  ungroup() %>% 
-  arrange(year, doy_id) %>% 
-  mutate(
-    year = as.factor(year)
-  )
-
-fs
 #  --------- start GAMM--------
-m <- bam(fs ~ 
-           s(doy_id,  bs = "cc", k = 17) +  
-           s(year, bs = "re", k = 2), 
-         # family = Gamma(), 
+m <- bam(aerobic_scope ~ 
+           fish_basin + 
+           s(doy_id, by = fish_basin, bs = "cc", k = 15) + 
+           # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(14, 3)) + 
+           s(floy_tag, by = fish_basin, bs = "re") + 
+           s(year, by = fish_basin, bs = "re"), 
+         # family = gaussian(link = "log"), 
+         family = Gamma(link = "log"),
          method = "fREML",
-         data = fs, 
+         data = dat, 
          select = TRUE
 )
 
 
 acf(resid_gam(m))
 
-r1 <- itsadug::start_value_rho(m, plot = TRUE, lag = 4)
+r1 <- itsadug::start_value_rho(m, plot = TRUE, lag = 17)
 r1
 
 m1 <- update(m,
@@ -151,8 +112,9 @@ m1 <- update(m,
 par(mfrow = c(2, 2))
 gam.check(m)
 gam.check(m1)
+plot(m)
 
-plot(m1)
+
 # -------- predict from model ---------
 # look at overall effect terms -----
 m_overall <- anova.gam(m1, freq = FALSE)
@@ -180,19 +142,22 @@ ind_parm
 smoothers
 m_glance
 
-# =---- save summaries -----
-
-
-dat_2 <- fs %>% 
+# # pridicted model
+# create new datafreame with dummmy variables for RE for plotting 
+dat_2 <- dat %>% 
   mutate(
+    floy_tag = "a", 
     year = "0"
   )
 
 glimpse(dat_2)
 
 # use prediction to get interpolated points 
-fits <- predict.gam(m1, newdata = dat_2, se.fit = TRUE, exclude = "s(year)"
+fits <- predict.gam(m1, newdata = dat_2, 
+                    se.fit = TRUE, exclude = c("s(floy_tag)", "s(year)")
                     )
+
+
 
 
 # combine fits with dataframe for plotting and calc upper and lower 
@@ -200,12 +165,17 @@ fits <- predict.gam(m1, newdata = dat_2, se.fit = TRUE, exclude = "s(year)"
 predicts <- data.frame(dat_2, fits) %>% 
   mutate(
     
-    lower = fit - 1.96 * se.fit,
-         upper = fit + 1.96 * se.fit) %>% 
+    # lower = fit - 1.96 * se.fit,
+    lower = exp(fit - 1.96 * se.fit),
+    # upper = fit + 1.96 * se.fit, 
+    upper = exp(fit + 1.96 * se.fit),
+    fit = exp(fit)
+    ) %>% 
   arrange(doy_id)
 
+
 write_rds(predicts, here("Saved Data", 
-                         "scope_for_activity_gamma_predict.rds"))
+                         "aerobic_scope_gamma_predict_basin.rds"))
 # figure out where your shading for summer and winter goes 
 predicts %>% 
   group_by(season) %>% 
@@ -231,16 +201,18 @@ rect_winter <- tibble(
 # ---------- plot ----------
 
 
-fs_sum <- fs %>% 
+
+as <- dat %>% 
   group_by(
-    doy_id
+    fish_basin, doy_id
   ) %>% 
   summarise(
-    mean_fs = mean(fs), 
-    sd_fs = sd(fs), 
-    sem_fs = sd(fs) / sqrt(n())
+    mean_as = mean(aerobic_scope), 
+    sd_as = sd(aerobic_scope),
+    sem_as = sd(aerobic_scope) / sqrt(n())
   ) %>% 
   ungroup()
+
 
 ggplot() + 
   geom_rect(data = rect_summer, aes(xmin = xmin,
@@ -258,35 +230,35 @@ ggplot() +
             alpha = 0.75,
             inherit.aes = FALSE) +
   geom_text(
-    aes(x = xmin + 30, y = 161.25, label = season),
+    aes(x = xmin + 30, y = 231.25, label = season),
     data = rect_summer,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 32, y = 161.25, label = season),
+    aes(x = xmin + 32, y = 231.25, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  geom_point(data = fs_sum, aes(x = doy_id, y = mean_fs, 
-                             # colour = fish_basin
-                            ), 
+  geom_point(data = as, aes(x = doy_id, y = mean_as, 
+                             colour = fish_basin), 
              size = 3, alpha = 0.5) + 
+  # geom_errorbar(data = as, aes(x = doy_id, y = mean_as, 
+  #                            colour = fish_basin, 
+  #                            ymin = mean_as - sem_as, 
+  #                            ymax = mean_as + sem_as, 
+  #                            ), width = 0.1) + 
   geom_line(data = predicts, 
-            aes(x = doy_id, y = fit, 
-                # colour = fish_basin
-                ), size = 1) +
+            aes(x = doy_id, y = fit, colour = fish_basin), size = 1) +
   geom_ribbon(data = predicts, 
               aes(ymin = lower,
                   ymax = upper,
                   x = doy_id, y = fit,
-                  # fill = fish_basin
-                  ), alpha = 0.25) +
+                  fill = fish_basin), alpha = 0.25) +
   scale_fill_viridis_d(name = "Basin",
                        option = "B", begin = 0.35, end = 0.75) +
   scale_colour_viridis_d(name = "Basin",
                          option = "B", begin = 0.35, end = 0.75) + 
   scale_x_continuous(breaks = seq(25, 350, 65), 
                      label = month_labels) +
-  scale_y_continuous(breaks = seq(-20, 180, 20)) +
-  coord_cartesian(ylim = c(-25, 165)) + 
+  scale_y_continuous(breaks = seq(0, 225, 25)) +
   theme_classic(base_size = 15) +
   theme(panel.grid = element_blank(),
         strip.text = element_blank(),
@@ -295,21 +267,19 @@ ggplot() +
         legend.title = element_text(hjust = 0.5),
         legend.text = element_text(hjust = 0.5)) +
   labs(x = "Date", 
-       y = expression(paste("Scope of Activity (mg", 
+       y = expression(paste("Aerboic Scope (mg", 
                             O[2]," ", kg^-1, " ", h^-1, ")"))) -> p 
 
 p
 
 write_rds(p, here("Plot Objects", 
-                  "Scope_of_activity_gamm_plot.rds"))
+                  "areobic_activity_gamm_plot.rds"))
 
 
 ggsave(plot = p, filename = here("plots",
                                  "Daily GAMM Plots", 
-                                 "factoral_scope_doy_gamm.png"), width = 11,
+                                 "aerobic_scope_doy_gamm.png"), width = 11,
        height = 8.5)
-
-
 
 
 

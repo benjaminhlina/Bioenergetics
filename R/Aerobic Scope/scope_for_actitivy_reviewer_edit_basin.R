@@ -126,14 +126,15 @@ fs <- fs %>%
 fs
 #  --------- start GAMM--------
 m <- bam(fs ~ 
-           s(doy_id,  bs = "cc", k = 17) +  
-           s(year, bs = "re", k = 2), 
+           fish_basin + 
+           s(doy_id, by = fish_basin, bs = "cc", k = 15) + 
+           # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(15, 3)) + 
+           s(year, by = fish_basin, bs = "re", k = 2), 
          # family = Gamma(), 
          method = "fREML",
          data = fs, 
          select = TRUE
 )
-
 
 acf(resid_gam(m))
 
@@ -198,14 +199,12 @@ fits <- predict.gam(m1, newdata = dat_2, se.fit = TRUE, exclude = "s(year)"
 # combine fits with dataframe for plotting and calc upper and lower 
 # add in month abb for plotting 
 predicts <- data.frame(dat_2, fits) %>% 
-  mutate(
-    
-    lower = fit - 1.96 * se.fit,
+  mutate(lower = fit - 1.96 * se.fit,
          upper = fit + 1.96 * se.fit) %>% 
   arrange(doy_id)
 
 write_rds(predicts, here("Saved Data", 
-                         "scope_for_activity_gamma_predict.rds"))
+                         "scope_for_activity_gamma_predict_basin.rds"))
 # figure out where your shading for summer and winter goes 
 predicts %>% 
   group_by(season) %>% 
@@ -231,16 +230,7 @@ rect_winter <- tibble(
 # ---------- plot ----------
 
 
-fs_sum <- fs %>% 
-  group_by(
-    doy_id
-  ) %>% 
-  summarise(
-    mean_fs = mean(fs), 
-    sd_fs = sd(fs), 
-    sem_fs = sd(fs) / sqrt(n())
-  ) %>% 
-  ungroup()
+
 
 ggplot() + 
   geom_rect(data = rect_summer, aes(xmin = xmin,
@@ -265,20 +255,16 @@ ggplot() +
     aes(x = xmin + 32, y = 161.25, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  geom_point(data = fs_sum, aes(x = doy_id, y = mean_fs, 
-                             # colour = fish_basin
-                            ), 
+  geom_point(data = fs, aes(x = doy_id, y = fs, 
+                             colour = fish_basin), 
              size = 3, alpha = 0.5) + 
   geom_line(data = predicts, 
-            aes(x = doy_id, y = fit, 
-                # colour = fish_basin
-                ), size = 1) +
+            aes(x = doy_id, y = fit, colour = fish_basin), size = 1) +
   geom_ribbon(data = predicts, 
               aes(ymin = lower,
                   ymax = upper,
                   x = doy_id, y = fit,
-                  # fill = fish_basin
-                  ), alpha = 0.25) +
+                  fill = fish_basin), alpha = 0.25) +
   scale_fill_viridis_d(name = "Basin",
                        option = "B", begin = 0.35, end = 0.75) +
   scale_colour_viridis_d(name = "Basin",
@@ -308,8 +294,6 @@ ggsave(plot = p, filename = here("plots",
                                  "Daily GAMM Plots", 
                                  "factoral_scope_doy_gamm.png"), width = 11,
        height = 8.5)
-
-
 
 
 
