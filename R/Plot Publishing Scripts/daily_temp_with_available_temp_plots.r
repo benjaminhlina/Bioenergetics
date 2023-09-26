@@ -63,7 +63,7 @@ p3 <- gam / vi_2 +
 
 ggsave(plot = p3, filename = here("plots",
                                   "Combined GAMM and Violin",
-                                  "gamm_violin_temp_doy_avaialable_temp.png"), 
+                                  "gamm_violin_temp_doy_avaialable_temp_a.png"), 
        width = 11,
        height = 7 * 2)
 

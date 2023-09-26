@@ -41,7 +41,7 @@ glimpse(smr)
 
 # ----- determine daily mean for smr and rmr -----
 rmr_sum <- rmr %>%
-  group_by(fish_basin, date, doy, week, month, season, year) %>% 
+  group_by(fish_basin, date, doy, doy_id, week, month, season, year) %>% 
   summarise(mean_rmr = mean(mean_rmr)) %>% 
   group_by()
 
@@ -62,7 +62,7 @@ tail(rmr)
 fs <- smr_sum %>% 
   left_join(rmr_sum, by = c("fish_basin", 
                             "date",
-                            # "doy_id", 
+                            # "doy_id",
                             "doy", 
                             "week", "month",
                             "season",
@@ -76,7 +76,7 @@ fs <- fs %>%
   filter(mean_rmr > mean_smr) %>% 
   mutate(fs = mean_rmr / mean_smr,
          tot_met = (fs + 1) * mean_smr, 
-         doy_id = days(date), 
+         doy_id_new = days(date), 
          month_abb = month(date, label = TRUE, abbr = TRUE), 
          month_abb = factor(month_abb, 
                             levels = c("May", "Jun", "Jul", 
@@ -105,13 +105,31 @@ plot(norm)
 
 glimpse(fs)
 
+  
 ggplot(data = fs, aes(x = mean_rmr, y = tot_met)) + 
   geom_point(size = 3, aes(colour = fish_basin)) + 
   scale_colour_viridis_d(option = "B", begin = 0.3, end = 0.8, 
                          alpha = 0.65, name = "Capture Basin") +
   labs(x = "Active metabolsim", 
        y = "Total Metabolism")
-  
+
+ggplot(data = fs, aes(x = doy, y = fs)) + 
+  geom_point(size = 3, aes(colour = fish_basin)) + 
+  scale_colour_viridis_d(option = "B", begin = 0.3, end = 0.8, 
+                         alpha = 0.65, name = "Capture Basin") +
+  scale_x_continuous(breaks = seq(25, 350, 65), 
+                     label = month_labels) +
+  theme_bw(base_size = 15) + 
+  theme(
+    panel.grid = element_blank(), 
+    legend.position = c(0.10, 0.90)
+  ) + 
+  labs(x = "Date", 
+       y = "Cost Index") -> p1
+ggsave(plot = p1, filename = here("plots",
+                                 "factor_scope_daily", 
+                                 "factor_scope_daily_mean.png"), width = 11,
+       height = 7)
 
 
 #  --------- start GAMM--------

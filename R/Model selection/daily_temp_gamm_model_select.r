@@ -25,8 +25,22 @@ ful_temp <- read_rds(here("Saved Data",
                           "Daily_temp.rds"))
 
 
+ful_temp
 
 
+
+temp_sum <- ful_temp %>% 
+  group_by(fish_basin, season) %>% 
+  summarise(
+    mean_temps = mean(mean_temp), 
+    sd = sd(mean_temp), 
+    sem = sd(mean_temp) / sqrt(n())
+  ) %>% 
+  ungroup() %>% 
+  arrange(season, fish_basin)
+
+
+temp_sum
 
 # run models ------
 

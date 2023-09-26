@@ -37,7 +37,7 @@ ful_temp <- read_rds(here("Saved Data",
 temp <- read_rds(here("Saved Data", 
                       "daily_temp_range_measured.rds"))
 predicts <- read_rds(here("model objects", 
-                          "temp_gamm_predicts.rds"))
+                          "temp_gamm_predicts_a.rds"))
 
 glimpse(ful_temp)
 glimpse(temp)
@@ -153,6 +153,7 @@ rect_winter <- tibble(
 season_line <- tibble(
   xmark = c(32, 123, 220, 305)
 )
+glimpse(predicts)
 
 ggplot(data = sum_temp_comb, aes(x = doy_id, 
                                  y = mean_fish_temp)) + 
@@ -209,7 +210,7 @@ ggplot(data = sum_temp_comb, aes(x = doy_id,
   alpha = 0.15) + 
   
   geom_line(data = predicts, 
-            aes(x = doy_id, y = fit, colour = fish_basin), 
+            aes(x = doy_id, y = .fitted, colour = fish_basin), 
             linewidth = 1) +
   geom_ribbon(data = predicts, 
               aes(ymin = lower,
@@ -235,7 +236,7 @@ ggplot(data = sum_temp_comb, aes(x = doy_id,
         legend.text = element_text(hjust = 0.5)) +
   labs(x = "Date",
        y = "Daily Temperature (°C)") -> p1
-# p1
+p1
 
 
 write_rds(x = p1, here("Plot Objects", 

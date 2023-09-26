@@ -125,6 +125,11 @@ ful <- ful %>%
       sensor_unit %in% ("°C") ~ 
         46.072 * (exp(1) ^ (0.0607 * sensor_value)) * (0.1) * ((weight / 0.1) ^ (0.85)),
       sensor_value %in% c("m/s²", "m") ~ NaN),
+    mmr = case_when(
+      sensor_unit %in% ("°C") ~ 
+        127.180 * (exp(1) ^ (0.0785 * sensor_value)) * (0.1) * 
+        ((weight / 0.1) ^ (0.85)),
+      sensor_value %in% c("m/s²", "m") ~ NaN),
     
     
     m_swim = case_when(

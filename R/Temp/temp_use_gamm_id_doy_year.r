@@ -1,29 +1,29 @@
 # load packages ----
 {
-library(broom.mixed)
-library(dplyr)
-library(fitdistrplus)
-library(ggplot2)
-library(ggh4x)
-library(gamm4)
-library(gratia)
-library(glmmTMB)
-library(here)
-library(itsadug)
-library(lubridate)
-library(lemon)
-library(janitor)
-library(lme4)
-library(mgcv)
-library(multcomp)
-library(openxlsx)
-library(patchwork)
-library(purrr)
-library(readr)
-library(tibble)
-library(tidymv)
-library(tidyr)
-library(visreg)
+  library(broom.mixed)
+  library(dplyr)
+  library(fitdistrplus)
+  library(ggplot2)
+  library(ggh4x)
+  library(gamm4)
+  library(gratia)
+  library(glmmTMB)
+  library(here)
+  library(itsadug)
+  library(lubridate)
+  library(lemon)
+  library(janitor)
+  library(lme4)
+  library(mgcv)
+  library(multcomp)
+  library(openxlsx)
+  library(patchwork)
+  library(purrr)
+  library(readr)
+  library(tibble)
+  library(tidymv)
+  library(tidyr)
+  library(visreg)
   source(here("R", 
               "Cleaning and Calculations", 
               "julian_date_reorder.r"))
@@ -140,14 +140,15 @@ r1
 m19 <- bam(mean_temp ~ fish_basin  + 
              s(doy_id, by = fish_basin, bs = "cc", k = 15) +
              s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)), method = "fREML",
+               k = c(20, 4)), 
+           method = "fREML",
            family = Gamma(link = "log"),
            data = ful_temp, 
            select = TRUE,
            discrete = TRUE, 
            rho = r1, 
            AR.start = ful_temp$start_event
-            
+           
 )
 
 acf(resid_gam(m19))
@@ -181,8 +182,8 @@ m19_glance <- glance(m19) %>%
   clean_names()
 
 
-write_rds(m19, here("model objects", 
-                    "temp_gamm_model.rds"))
+# write_rds(m19, here("model objects", 
+#                     "temp_gamm_model.rds"))
 # view all model info ----
 
 overall_parm
@@ -230,38 +231,68 @@ dat_2 <- ful_temp %>%
   mutate(
     floy_tag = "a",
     year = 0, 
-  )
+  ) 
+# dplyr::select(floy_tag, fish_basin, doy_id, doy, start_event, year, mean_temp)
 
 glimpse(dat_2)
 
 # use prediction to get interpolated points 
-fits <- predict.bam(m19, newdata = dat_2, 
-                    type = "response", se = TRUE, discrete = FALSE, 
+fits <- predict.bam(m19, newdata = dat_2, se = TRUE, discrete = FALSE, 
                     exclude = c("s(floy_tag, year)"),
                     newdata.guaranteed = TRUE)
-fits <- predict.bam(m19, newdata = dat_2,
-                    type = "response", se = TRUE, discrete = FALSE,
-                    exclude = c("s(floy_tag, year)"),
-                    newdata.guaranteed = TRUE)
+ba <- augment(m19, 
+              newdata = dat_2, 
+              se = TRUE, type.predict = "link", 
+              # discrete = FALSE, 
+              # exclude = c("s(floy_tag, year)"),
+              # newdata.guaranteed = TRUE
+)
 
+ba <- ful_temp %>% 
+  mutate(
+    floy_tag = "a",
+    year = 0
+  ) %>% 
+  augment(m19,data = ., 
+          # type.predict = "link", 
+          se = TRUE, 
+          exclude = "s(floy_tag, year)", discrete = FaLSE) %>% 
+  mutate(
+    .fitted = exp(1) ^ .fitted, 
+    .se.fit = exp(1) ^ .se.fit,
+    lower = .fitted - (1.96 * .se.fit),
+    upper = .fitted + (1.96 * .se.fit), 
+    month_abb = month(date, label = TRUE, abbr = TRUE), 
+    month_abb = factor(month_abb, 
+                       levels = c("May", "Jun", "Jul", 
+                                  "Aug", "Sep", "Oct",
+                                  "Nov", "Dec", "Jan",
+                                  "Feb", "Mar", "Apr"))) %>% 
+  arrange(floy_tag, doy_id)
 
 
 # combine fits with dataframe for plotting and calc upper and lower 
 # add in month abb for plotting 
-predicts <- data.frame(dat_2, fits) %>% 
-  mutate(lower = fit - 1.96 * se.fit,
-         upper = fit + 1.96 * se.fit, 
-         month_abb = month(date, label = TRUE, abbr = TRUE), 
-         month_abb = factor(month_abb, 
-                            levels = c("May", "Jun", "Jul", 
-                                       "Aug", "Sep", "Oct",
-                                       "Nov", "Dec", "Jan",
-                                       "Feb", "Mar", "Apr"))) %>% 
+predicts <-
+  data.frame(dat_2, fits) %>%
+  mutate(
+    # fit = exp(1) ^ fit, 
+    # se.fit = exp(1) ^ se.fit,
+    lower = exp(fit - (1.96 * se.fit)),
+    upper = exp(fit + (1.96 * se.fit)), 
+    fit = exp(1) ^ fit, 
+    month_abb = month(date, label = TRUE, abbr = TRUE), 
+    month_abb = factor(month_abb, 
+                       levels = c("May", "Jun", "Jul", 
+                                  "Aug", "Sep", "Oct",
+                                  "Nov", "Dec", "Jan",
+                                  "Feb", "Mar", "Apr"))) %>% 
   arrange(floy_tag, doy_id)
 
 # double check that predicts looks correct 
 glimpse(predicts) 
-
+glimpse(ba)
+predicts
 # calculate daily mean temp by fish basin 
 ful_temp %>%
   group_by(doy_id, fish_basin) %>% 
@@ -303,7 +334,9 @@ rect_winter <- tibble(
 
 
 write_rds(predicts, here("model objects", 
-                         "temp_gamm_predicts.rds"))
+                         "temp_gamm_predicts_update.rds"))
+write_rds(ba, here("model objects", 
+                   "temp_gamm_predicts_a.rds"))
 # ---------- plot doy gamm for 2017 - 2020 with mean daily temp ------
 ggplot(predicts) +
   geom_rect(data = rect_summer, aes(xmin = xmin,
@@ -366,12 +399,12 @@ ggplot(predicts) +
 p
 
 write_rds(p, here("Plot Objects", 
-                  "daily_temp_GAMM_plot.rds"))
+                  "daily_temp_GAMM_plot_update.rds"))
 
 
 ggsave(plot = p, filename = here("plots",
                                  "Daily GAMM Plots",
-                                 "gamm_temp_doy.png"), width = 11,
+                                 "gamm_temp_doy_update.png"), width = 11,
        height = 7 )
 
 
@@ -426,7 +459,7 @@ ggplot(data = pred_id) +
                   fill = fish_basin), alpha = 0.5) +
   scale_y_continuous(breaks = seq(0, 18, 2)) +
   scale_x_continuous(breaks = seq(25, 350, 65), 
-                    label = month_label) +
+                     label = month_label) +
   scale_colour_viridis_d(name = "Basin",
                          option = "B", begin = 0.35, end = 0.75) +
   scale_shape_discrete(name = "Basin") +
