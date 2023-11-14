@@ -184,7 +184,7 @@ ggplot() +
        y = expression(paste("Metabolic Rate (mg", 
                             O[2]," ", kg^-1, " ", h^-1, ")"))) -> p 
 
-# p
+p
 write_rds(p, here("Plot Objects", 
                   "Scope_of_activity_and_AS_gamm_plot_basin.rds"))
 
