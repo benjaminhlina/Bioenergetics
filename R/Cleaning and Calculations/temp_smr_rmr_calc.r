@@ -19,6 +19,7 @@ lt <- read_rds(here::here("Saved data",
 
 
 glimpse(lt)
+?plogis
 
 # bring in metadata for tagged fish -----
 fish_tag_data <- read_csv(here::here("Data", 
@@ -65,13 +66,13 @@ lt <- lt %>%
   )
 
 
-wg_tl <- lt %>% 
-  group_by(floy_tag, tl, weight, 
-           # weight_1, weight_2
-           ) %>% 
-  summarise() %>% 
-  arrange(tl) %>% 
-  View()
+# wg_tl <- lt %>% 
+#   group_by(floy_tag, tl, weight, 
+#            # weight_1, weight_2
+#            ) %>% 
+#   summarise() %>% 
+#   arrange(tl) %>% 
+#   View()
 
 
 
@@ -129,7 +130,8 @@ glimpse(ful)
 # create summarized bioE per day----
 # mean daily temp, depth, and accel 
 ful_1 <- ful %>% 
-  dplyr::select(floy_tag, detection_timestamp_utc, time_bins, date, fish_basin, 
+  dplyr::select(floy_tag, detection_timestamp_utc, time_bins, date, fish_basin,
+                lat_mean, long_mean, 
                 week, month, season, year, tl, fl, girth, weight, lab_wt,
                 sensor_unit, sensor_value, raw_acel) %>% 
   
@@ -192,5 +194,5 @@ ful_1 %>%
 
 # write bioE dataframe as rds ----- 
 write_rds(x = ful_1, here("Saved Data", 
-                          "BioE_lt.rds"))
+                          "BioE_lt_w_lat_lon.rds"))
 
