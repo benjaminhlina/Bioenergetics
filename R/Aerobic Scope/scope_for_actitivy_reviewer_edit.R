@@ -89,14 +89,14 @@ fs <- fs %>%
                                        "Fall", "Winter")) %>% 
   filter(fs >= 0)
 
-fs %>% 
-  filter(doy_id %in% seq(25, 350, 65)) %>% 
-  group_by(month_abb) %>% 
-  summarise() %>% 
+fs %>%
+  filter(doy %in% seq(25, 350, 65)) %>%
+  group_by(month_abb) %>%
+  summarise() %>%
   .$month_abb -> month_labels
 
 
-glimpse(fs)
+# glimpse(fs)
 month_labels
 # look at distibution ------
 ggplot(data = fs, aes(x = fs)) + 
@@ -109,16 +109,16 @@ fs_scope <- fs %>%
 descdist(fs_scope)
 
 
-fit_gamma <- fitdist(fs_scope, distr = "norm", method = "mle")
+fit_gamma <- fitdist(fs_scope, distr = "gamma", method = "mle")
 plot(fit_gamma)
 
 fs <- fs %>% 
-  arrange(year, doy_id) %>% 
+  arrange(year, doy) %>% 
   group_by(year) %>% 
-  mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE, 
+  mutate(start_event = if_else(doy == min(doy), true = TRUE, 
                                false = FALSE)) %>% 
   ungroup() %>% 
-  arrange(year, doy_id) %>% 
+  arrange(year, doy) %>% 
   mutate(
     year = as.factor(year)
   )
@@ -126,16 +126,16 @@ fs <- fs %>%
 fs
 #  --------- start GAMM--------
 m <- bam(fs ~ 
-           s(doy_id,  bs = "cc", k = 17) +  
+           s(doy,  bs = "cc", k = 17) +  
            s(year, bs = "re", k = 2), 
-         # family = Gamma(), 
+         family = gaussian(link = "inverse"),
          method = "fREML",
          data = fs, 
          select = TRUE
 )
 
 
-acf(resid_gam(m))
+# acf(resid_gam(m))
 
 r1 <- itsadug::start_value_rho(m, plot = TRUE, lag = 4)
 r1
@@ -146,13 +146,41 @@ m1 <- update(m,
              AR.start = start_event
              
 )
+# m2 <- bam(fs ~ 
+#            s(doy,  bs = "cc", k = 17) +  
+#            s(year, bs = "re", k = 2), 
+#          # family = gaussian(link = "inverse"),
+#          method = "fREML",
+#          data = fs, 
+#          select = TRUE
+# )
+# 
+# 
+# # acf(resid_gam(m))
+# 
+# r1 <- itsadug::start_value_rho(m2, plot = FALSE, lag = 4)
+# r1
+# 
+# m3 <- update(m2,
+#              discrete = TRUE,
+#              rho = r1, 
+#              AR.start = start_event
+#              
+# )
 
+# summary(m1)
+# par(mfrow = c(2, 2))
+# gam.check(m)
+# gam.check(m1)
+# draw(m1)
+appraise(m1)
+summary(m1)
+# summary(m3)
 
-par(mfrow = c(2, 2))
-gam.check(m)
-gam.check(m1)
-
-plot(m1)
+# anova(m1, m3, test = "F")
+AIC(m1)
+AIC(m3)
+# plot(m1)
 # -------- predict from model ---------
 # look at overall effect terms -----
 m_overall <- anova.gam(m1, freq = FALSE)
@@ -192,7 +220,7 @@ glimpse(dat_2)
 
 # use prediction to get interpolated points 
 fits <- predict.gam(m1, newdata = dat_2, se.fit = TRUE, exclude = "s(year)"
-                    )
+)
 
 
 # combine fits with dataframe for plotting and calc upper and lower 
@@ -200,17 +228,22 @@ fits <- predict.gam(m1, newdata = dat_2, se.fit = TRUE, exclude = "s(year)"
 predicts <- data.frame(dat_2, fits) %>% 
   mutate(
     
-    lower = fit - 1.96 * se.fit,
-         upper = fit + 1.96 * se.fit) %>% 
-  arrange(doy_id)
+    lower = 1 / (fit - 1.96 * se.fit),
+    upper = 1 / (fit + 1.96 * se.fit),
+    fit = 1 / fit
+    # lower = exp(1) ^ (fit - 1.96 * se.fit),
+    # upper = exp(1) ^ (fit + 1.96 * se.fit),
+    # fit = exp(1) ^ fit
+    ) %>% 
+  arrange(doy)
 
 write_rds(predicts, here("Saved Data", 
                          "scope_for_activity_gamma_predict.rds"))
 # figure out where your shading for summer and winter goes 
 predicts %>% 
   group_by(season) %>% 
-  summarise(first = first(doy_id),
-            last = last(doy_id)) %>% 
+  summarise(first = first(doy),
+            last = last(doy)) %>% 
   ungroup()
 
 rect_summer <- tibble(
@@ -233,7 +266,7 @@ rect_winter <- tibble(
 
 fs_sum <- fs %>% 
   group_by(
-    doy_id
+    doy
   ) %>% 
   summarise(
     mean_fs = mean(fs), 
@@ -241,7 +274,8 @@ fs_sum <- fs %>%
     sem_fs = sd(fs) / sqrt(n())
   ) %>% 
   ungroup()
-
+write_rds(fs_sum, here::here("Model Objects", 
+                             "mean_soa.rds"))
 ggplot() + 
   geom_rect(data = rect_summer, aes(xmin = xmin,
                                     xmax = xmax,
@@ -265,20 +299,20 @@ ggplot() +
     aes(x = xmin + 32, y = 161.25, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  geom_point(data = fs_sum, aes(x = doy_id, y = mean_fs, 
-                             # colour = fish_basin
-                            ), 
-             size = 3, alpha = 0.5) + 
+  geom_point(data = fs_sum, aes(x = doy, y = mean_fs, 
+                                # colour = fish_basin
+  ), 
+  size = 3, alpha = 0.5) + 
   geom_line(data = predicts, 
-            aes(x = doy_id, y = fit, 
+            aes(x = doy, y = fit, 
                 # colour = fish_basin
-                ), size = 1) +
+            ), size = 1) +
   geom_ribbon(data = predicts, 
               aes(ymin = lower,
                   ymax = upper,
-                  x = doy_id, y = fit,
+                  x = doy, y = fit,
                   # fill = fish_basin
-                  ), alpha = 0.25) +
+              ), alpha = 0.25) +
   scale_fill_viridis_d(name = "Basin",
                        option = "B", begin = 0.35, end = 0.75) +
   scale_colour_viridis_d(name = "Basin",
