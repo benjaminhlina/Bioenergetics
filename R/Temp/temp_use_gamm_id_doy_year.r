@@ -99,6 +99,19 @@
 ful_temp <- read_rds(here("Saved Data", 
                           "Daily_temp.rds"))
 
+days()
+ful_temp <- ful_temp %>% 
+    mutate(doy_id = days(date, end = "02-28")) %>% 
+    group_by(floy_tag, year) %>%
+    arrange(floy_tag, year, doy_id) %>%
+    mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE,
+                                 false = FALSE)) %>%
+    ungroup() %>%
+    arrange(date, start_event)
+
+
+glimpse(ful_temp)
+
 # crete day of year (doy) variable and refactor month 
 # have doy start in may and end in april... 
 
@@ -258,10 +271,11 @@ ba <- ful_temp %>%
           se = TRUE, 
           exclude = "s(floy_tag, year)", discrete = FaLSE) %>% 
   mutate(
+    
+
+    lower = exp(1) ^ (.fitted - 1.96 * .se.fit),
+    upper = exp(1) ^ (.fitted + 1.96 * .se.fit), 
     .fitted = exp(1) ^ .fitted, 
-    .se.fit = exp(1) ^ .se.fit,
-    lower = .fitted - (1.96 * .se.fit),
-    upper = .fitted + (1.96 * .se.fit), 
     month_abb = month(date, label = TRUE, abbr = TRUE), 
     month_abb = factor(month_abb, 
                        levels = c("May", "Jun", "Jul", 
@@ -283,10 +297,11 @@ predicts <-
     fit = exp(1) ^ fit, 
     month_abb = month(date, label = TRUE, abbr = TRUE), 
     month_abb = factor(month_abb, 
-                       levels = c("May", "Jun", "Jul", 
+                       levels = c("Mar", "Apr", 
+                                  "May", "Jun", "Jul", 
                                   "Aug", "Sep", "Oct",
                                   "Nov", "Dec", "Jan",
-                                  "Feb", "Mar", "Apr"))) %>% 
+                                  "Feb"))) %>% 
   arrange(floy_tag, doy_id)
 
 # double check that predicts looks correct 
@@ -316,22 +331,27 @@ predicts %>%
             last = last(doy_id)) %>% 
   ungroup()
 
+predicts %>% 
+  filter(month == "December") %>% 
+  glimpse(.)
+
 rect_summer <- tibble(
   season = "Summer",
-  xmin = 32,
-  xmax = 123,
+  xmin = 93,
+  xmax = 185,
   ymin = -Inf,
   ymax = Inf
 )
 
 rect_winter <- tibble(
   season = "Winter",
-  xmin = 220,
-  xmax = 305,
+  xmin = 276,
+  xmax = 365,
   ymin = -Inf,
   ymax = Inf
 )
-
+predicts <- as_tibble(predicts)
+predicts
 
 write_rds(predicts, here("model objects", 
                          "temp_gamm_predicts_update.rds"))
@@ -389,14 +409,14 @@ ggplot(predicts) +
   theme(panel.grid = element_blank(),
         strip.text = element_blank(),
         axis.text = element_text(colour = "black"),
-        legend.position = c(0.95, 0.92),
+        legend.position = c(0.05, 0.92),
         legend.background = element_blank(),
         legend.title = element_text(hjust = 0.5),
         legend.text = element_text(hjust = 0.5)) +
   labs(x = "Date",
        y = "Daily Temperature (°C)") -> p 
 
-p
+# p
 
 write_rds(p, here("Plot Objects", 
                   "daily_temp_GAMM_plot_update.rds"))
