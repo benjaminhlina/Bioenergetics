@@ -54,6 +54,7 @@ ful_temp <- ful %>%
             mean_mmr = mean(mmr, na.rm = TRUE),
             sem_mmr = sd(mmr) / sqrt(n()),
             cv_mmr = raster::cv(mmr), 
+            
   ) %>%
   ungroup() %>%
   mutate(date_2 = as.numeric(date),
