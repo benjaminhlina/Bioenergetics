@@ -1,4 +1,6 @@
 # # load packages ----
+# 
+# install.package("broom.mixed")
 {
   library(broom.mixed)
   library(dplyr)
@@ -70,7 +72,7 @@
 #                                    "February", "March", "April"))
 #          ) %>%
 #   arrange(month) %>%
-#   mutate(doy_id = days(date)) %>%
+#   mutate(doy = days(date)) %>%
 #   arrange(date)
 # 
 # # 
@@ -105,8 +107,8 @@ plot(gammas)
 
 ful_temp <-  ful_temp %>% 
   group_by(floy_tag, year) %>% 
-  arrange(floy_tag, year, doy_id) %>% 
-  mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE, 
+  arrange(floy_tag, year, doy) %>% 
+  mutate(start_event = if_else(doy == min(doy), true = TRUE, 
                                false = FALSE)) %>% 
   ungroup() %>% 
   arrange(date, start_event)
@@ -123,7 +125,7 @@ ful_temp <- ful_temp %>%
 
 
 coef_v <- ful_temp %>% 
-  group_by(fish_basin, doy_id, date_label, season) %>% 
+  group_by(fish_basin, doy, date_label, season) %>% 
   summarise(
     mean_cv = mean(cv_smr, na.rm = TRUE), 
     sem_cv = sd(cv_smr, na.rm = TRUE) / sqrt(n())
@@ -133,13 +135,13 @@ coef_v <- ful_temp %>%
 coef_v %>%
   filter(season == "Winter") %>% 
   mutate(
-    date_label = reorder(date_label, doy_id)
-  ) %>% filter(doy_id %in% seq(230, 290, 20)) %>% 
+    date_label = reorder(date_label, doy)
+  ) %>% filter(doy %in% seq(230, 290, 20)) %>% 
   distinct(date_label) -> date_labels
 
 coef_v %>%
   filter(season == "Winter") %>% 
-  ggplot(aes(x = doy_id, y = mean_cv)) + 
+  ggplot(aes(x = doy, y = mean_cv)) + 
   geom_point(aes(colour = fish_basin), size = 3) + 
   geom_errorbar(aes(ymin = mean_cv - sem_cv,
                     ymax = mean_cv + sem_cv, 
@@ -186,13 +188,13 @@ ful_temp <- ful_temp %>%
 # possibly add temp used to then model what temps fish may see 
 # -----------------------START GAMMS -------------------------------
 m <- bam(mean_smr ~ 
-           s(doy_id, bs = "cc", k = 15) +
+           s(doy, bs = "cc", k = 15) +
            s(floy_tag, bs = c( "re"), 
              k = c(20)) +
            s(year, bs = "re"), 
          
          method = "fREML",
-         family = gaussian(link = "log"),
+         family = Gamma(link = "inverse"),
          data = ful_temp, 
          select = TRUE
 )
@@ -207,12 +209,49 @@ r1
 m1 <- update(m, discrete = TRUE, 
              rho = r1, 
              AR.start = start_event)
+m2 <- bam(mean_smr ~ 
+           s(doy, bs = "cc", k = 15) +
+           s(floy_tag, bs = c( "re"), 
+             k = c(20)) +
+           s(year, bs = "re"), 
+         
+         method = "fREML",
+         family = Gamma(link = "identity"),
+         data = ful_temp, 
+         select = TRUE
+)
+
+acf(resid_gam(m2))
+
+
+r1 <- itsadug::start_value_rho(m2, plot = TRUE, lag = 17)
+r1
+
+
+m3 <- update(m2, discrete = TRUE, 
+             rho = r1, 
+             AR.start = start_event)
+
+
 
 
 # check model fit -----
-par(mfrow = c(2, 2))
-gam.check(m1)
-plot(m1)
+# par(mfrow = c(2, 2))
+# gam.check(m1)
+# plot(m1)
+appraise(m1)
+appraise(m3)
+# draw(m1)
+
+summary(m1)
+summary(m3)
+anova(m3)
+
+anova(m1)
+anova(m1, m3, test = "Chisq")
+AIC(m1)
+AIC(m3)
+
 
 
 # look at overall effect terms -----
@@ -278,7 +317,7 @@ dat_2 <- ful_temp %>%
 glimpse(dat_2)
 
 # use prediction to get interpolated points 
-fits <- predict.bam(m1, newdata = dat_2, discrete = FALSE,
+fits <- predict.bam(m3, newdata = dat_2, discrete = FALSE,
                     # type = "response", 
                     se = TRUE, 
                     exclude = c("s(floy_tag)", "s(year)"),
@@ -291,16 +330,32 @@ fits <- predict.bam(m1, newdata = dat_2, discrete = FALSE,
 predicts <- data.frame(dat_2, fits) %>% 
   mutate(
     
-    lower = exp(fit - 1.96 * se.fit),
-    upper = exp(fit + 1.96 * se.fit), 
-    fit = exp(fit),
+    # lower = 1 / (fit - 1.96 * se.fit),
+    # upper = 1 / (fit + 1.96 * se.fit),
+    # fit = 1 / (fit),
+    lower = (fit - 1.96 * se.fit),
+    upper = (fit + 1.96 * se.fit),
+    # fit = 1 / (fit),
     month_abb = month(date, label = TRUE, abbr = TRUE), 
     month_abb = factor(month_abb, 
                        levels = c("May", "Jun", "Jul", 
                                   "Aug", "Sep", "Oct",
                                   "Nov", "Dec", "Jan",
                                   "Feb", "Mar", "Apr"))) %>% 
-  arrange(floy_tag, doy_id)
+  arrange(floy_tag, doy)
+# predicts_log <- data.frame(dat_2, fits) %>% 
+#   mutate(
+#     
+#     lower = exp(1) ^ (fit - 1.96 * se.fit),
+#     upper = exp(1) ^ (fit + 1.96 * se.fit), 
+#     fit = exp(1) ^ (fit),
+#     month_abb = month(date, label = TRUE, abbr = TRUE), 
+#     month_abb = factor(month_abb, 
+#                        levels = c("May", "Jun", "Jul", 
+#                                   "Aug", "Sep", "Oct",
+#                                   "Nov", "Dec", "Jan",
+#                                   "Feb", "Mar", "Apr"))) %>% 
+#   arrange(floy_tag, doy)
 # predicts <- data.frame(dat_2, fits) %>% 
 #   mutate(fit = exp(1) ^ fit,
 #     lower = fit - 1.96 * se.fit,
@@ -311,499 +366,535 @@ predicts <- data.frame(dat_2, fits) %>%
 #                                        "Aug", "Sep", "Oct",
 #                                        "Nov", "Dec", "Jan",
 #                                        "Feb", "Mar", "Apr"))) %>% 
-#   arrange(floy_tag, doy_id)
+#   arrange(floy_tag, doy)
 
 # double check that predicts looks correct 
 glimpse(predicts) 
 
 
 
-write_rds(predicts, here("Saved Data", 
+write_rds(predicts, here("Saved Data",
                          "smr_gamma_predict.rds"))
 
 # calculate daily mean temp by fish basin 
 ful_temp %>%
-  group_by(doy_id, fish_basin) %>% 
+  group_by(doy, 
+           # fish_basin
+           ) %>% 
   summarise(mean_smr = mean(mean_smr),
             mean_temp = mean(mean_temp)) %>% 
   ungroup() -> mean_smr
 
-# create month labels 
-predicts %>% 
-  filter(doy_id %in% seq(25, 350, 65)) %>% 
-  group_by(year, month_abb) %>% 
-  summarise() %>% 
-  .$month_abb -> month_label 
-month_label
+write_rds(mean_smr, here::here("model objects", 
+                               "mean_smr.rds"))
 
-# plotting prep -------
-
-# figure out where your shading for summer and winter goes 
-predicts %>% 
-  group_by(season) %>% 
-  summarise(first = first(doy_id),
-            last = last(doy_id)) %>% 
-  ungroup()
-
-rect_summer <- tibble(
-  season = "Summer",
-  xmin = 32,
-  xmax = 123,
-  ymin = -Inf,
-  ymax = Inf
-)
-
-rect_winter <- tibble(
-  season = "Winter",
-  xmin = 215,
-  xmax = 305,
-  ymin = -Inf,
-  ymax = Inf
-)
-
-# ---------- plot doy gamm for 2017 - 2020 with mean daily temp ------
-ggplot(predicts) +
-  geom_rect(data = rect_summer, aes(xmin = xmin,
-                                    xmax = xmax,
-                                    ymin = ymin,
-                                    ymax = ymax),
-            fill = "grey80",
-            alpha = 0.75,
-            inherit.aes = FALSE) +
-  geom_rect(data = rect_winter, aes(xmin = xmin,
-                                    xmax = xmax,
-                                    ymin = ymin,
-                                    ymax = ymax),
-            fill ="grey80",
-            alpha = 0.75,
-            inherit.aes = FALSE) +
-  geom_text(
-    aes(x = xmin + 30, y = 64, label = season),
-    data = rect_summer,
-    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  geom_text(
-    aes(x = xmin + 32, y = 64, label = season),
-    data = rect_winter,
-    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  
-  geom_point(data = mean_smr, aes(x = doy_id, y = mean_smr,
-                                  colour = fish_basin,
-  ), alpha = 0.5, size = 3) +
-  
-  geom_line(
-    aes(x = doy_id, y = fit, colour = fish_basin), size = 1) +
-  geom_ribbon( 
-    aes(ymin = lower,
-        ymax = upper,
-        x = doy_id, y = fit,
-        fill = fish_basin), alpha = 0.25) +
-  scale_y_continuous(breaks = seq(20, 60, 10)
-  ) +
-  scale_x_continuous(breaks = seq(25, 350, 65), 
-                     label = month_label) +
-  scale_colour_viridis_d(name = "Basin",
-                         option = "B", begin = 0.35, end = 0.75) +
-  scale_shape_discrete(name = "Basin") +
-  scale_fill_viridis_d(name = "Basin",
-                       option = "B", begin = 0.35, end = 0.75) +
-  # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
-  
-  # facet_rep_wrap(.~ floy_tag, repeat.tick.labels = TRUE,
-  #                # ncol = 1
-  # ) +
-  theme_classic(base_size = 15) +
-  theme(panel.grid = element_blank(),
-        strip.text = element_blank(),
-        axis.text = element_text(colour = "black"),
-        legend.position = c(0.95, 0.92),
-        legend.background = element_blank(),
-        legend.title = element_text(hjust = 0.5),
-        legend.text = element_text(hjust = 0.5)) +
-  labs(x = "Date",
-       y = expression(paste("Standard Metabolism (mg", 
-                            O[2]," ", kg^-1, " ", h^-1, ")"))) -> p 
-
-p
-write_rds(p, here("Plot Objects", 
-                  "daily_smr_GAMM_plot.rds"))
-
-
-ggsave(plot = p, filename = here("plots",
-                                 "Daily GAMM Plots",
-                                 "gamm_smr_doy.png"), width = 11,
-       height = 7 )
-
-
-
-
-
-
-
-
-
-
-cols <- rev(rainbow(6)[-6])
-
-ggplot(predicts) +
-  geom_rect(data = rect_summer, aes(xmin = xmin,
-                                    xmax = xmax,
-                                    ymin = ymin,
-                                    ymax = ymax),
-            fill = "grey80",
-            alpha = 0.75,
-            inherit.aes = FALSE) +
-  geom_rect(data = rect_winter, aes(xmin = xmin,
-                                    xmax = xmax,
-                                    ymin = ymin,
-                                    ymax = ymax),
-            fill ="grey80",
-            alpha = 0.75,
-            inherit.aes = FALSE) +
-  # geom_text(
-  #   aes(x = xmin + 25, y = 64, label = season),
-  #   data = rect_summer,
-  #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  # geom_text(
-  #   aes(x = xmin + 30, y = 64, label = season),
-  #   data = rect_winter,
-  #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  
-  geom_point(data = mean_smr, aes(x = doy_id, y = mean_smr,
-                                  fill = mean_temp,
-                                  # shape = fish_basin
-  ), size = 3, colour = "black", stroke = 0.25, shape = 21) +
-  geom_line(
-    aes(x = doy_id, y = fit, 
-        # linetype = fish_basin
-    ), colour = "black", 
-    linewidth = 1) +
-  geom_ribbon( 
-    aes(ymin = lower,
-        ymax = upper,
-        x = doy_id, y = fit, 
-        # group = fish_basin,
-    ), alpha = 0.10) +
-  
-  scale_y_continuous(breaks = seq(20, 60, 10)) +
-  scale_x_continuous(breaks = seq(25, 350, 65), 
-                     label = month_label) +
-  # scale_colour_viridis_c(name = "Temperature (°C)",
-  #                        option = "B", begin = 0.35, end = 0.75) +
-  scale_fill_gradientn(colours = alpha(cols, f = 0.35), 
-                       name = "Temperature (°C)",
-                       breaks = seq(2, 10, 2), 
-                       guide = guide_colorbar(frame.colour = "black", 
-                                              ticks.colour = "black")
-  ) +
-  scale_shape_manual(name = "Basin", values = 21:23 
-  ) +
-  scale_linetype("Basin") + 
-  # scale_fill_viridis_c(name = ,
-  #                      option = "B", begin = 0.35, end = 0.75) +
-  # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
-  
-  facet_wrap(.~ fish_basin,
-             # repeat.tick.labels = TRUE,
-             ncol = 1
-  ) +
-  theme_classic(base_size = 15) +
-  theme(panel.grid = element_blank(),
-        # strip.text = element_blank(),
-        axis.text = element_text(colour = "black"),
-        axis.title.y = element_text(hjust = 0.20),
-        legend.position = c(0.89, 0.90),
-        legend.background = element_blank(),
-        legend.title = element_text(hjust = 0.5),
-        legend.text = element_text(hjust = 0.5)) +
-  labs(
-    x = "", 
-    # x = "Date",
-    y = expression(paste("Standard Metabolism (mg", 
-                         O[2]," ", kg^-1, " ", h^-1, ")"))) -> p2
-
-# p2
-# ggsave(plot = p2, filename = here("plots",
+# # create month labels 
+# month_doy <- predicts %>% 
+#   group_by(month_abb) %>% 
+#   summarise(first = first(doy),
+#             last = last(doy)) %>% 
+#   ungroup() %>% 
+#   # mutate(
+#   #   month_abb = forcats::fct_relevel(month_abb, "Jan", 
+#   #                                    "Feb", "Mar", "Apr", "May", "Jun",
+#   #                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+#   # ) %>% 
+#   # arrange(month_abb) %>% 
+#   # mutate(
+#   #   first = if_else(
+#   #     month_abb %in% "May", true = 123, false = first
+#   #   )
+#   # ) %>%   
+#   .$first
+# predicts %>% 
+#   filter(doy %in% month_doy) %>%
+#   group_by(month_abb) %>% 
+#   summarise() %>% 
+#   # mutate(
+#   #   month_abb = forcats::fct_relevel(month_abb, "Jan", 
+#   #                                    "Feb", "Mar", "Apr", "May", "Jun",
+#   #                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+#   # ) %>% 
+#   # arrange(month_abb) %>% 
+#   .$month_abb -> month_label 
+# month_label
+# # plotting prep -------
+# 
+# # figure out where your shading for summer and winter goes 
+# predicts %>% 
+#   group_by(season) %>% 
+#   summarise(first = first(doy),
+#             last = last(doy)) %>% 
+#   ungroup()
+# 
+# rect_summer <- tibble(
+#   season = "Summer",
+#   xmin = 32,
+#   xmax = 124,
+#   ymin = -Inf,
+#   ymax = Inf
+# )
+# 
+# rect_winter <- tibble(
+#   season = "Winter",
+#   xmin = 215,
+#   xmax = 305,
+#   ymin = -Inf,
+#   ymax = Inf
+# )
+# # ---------- plot doy gamm for 2017 - 2020 with mean daily temp ------
+# ggplot(predicts) +
+#   geom_rect(data = rect_summer, aes(xmin = xmin,
+#                                     xmax = xmax,
+#                                     ymin = ymin,
+#                                     ymax = ymax),
+#             fill = "grey80",
+#             alpha = 0.75,
+#             inherit.aes = FALSE) +
+#   geom_rect(data = rect_winter, aes(xmin = xmin,
+#                                     xmax = xmax,
+#                                     ymin = ymin,
+#                                     ymax = ymax),
+#             fill ="grey80",
+#             alpha = 0.75,
+#             inherit.aes = FALSE) +
+#   # geom_rect(data = rect_winter_dec, aes(xmin = xmin,
+#   #                                   xmax = xmax,
+#   #                                   ymin = ymin,
+#   #                                   ymax = ymax),
+#   #           fill ="grey80",
+#   #           alpha = 0.75,
+#   #           inherit.aes = FALSE) +
+#   # geom_text(
+#   #   aes(x = xmin + 30, y = 64, label = season),
+#   #   data = rect_summer,
+#   #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   # geom_text(
+#   #   aes(x = xmin + 32, y = 64, label = season),
+#   #   data = rect_winter,
+#   #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   
+#   geom_point(data = mean_smr, aes(x = doy, y = mean_smr,
+#                                   # colour = fish_basin,
+#   ), alpha = 0.5, size = 3) +
+#   
+#   geom_line(
+#     aes(x = doy, y = fit, 
+#         # colour = fish_basin
+#         ), size = 1) +
+#   geom_ribbon( 
+#     aes(ymin = lower,
+#         ymax = upper,
+#         x = doy, y = fit,
+#         # fill = fish_basin
+#         ), alpha = 0.25) +
+#   scale_y_continuous(breaks = seq(20, 60, 10)
+#   ) +
+#   scale_x_continuous(breaks = month_doy, 
+#                      label = month_label) +
+#   scale_colour_viridis_d(name = "Basin",
+#                          option = "B", begin = 0.35, end = 0.75) +
+#   scale_shape_discrete(name = "Basin") +
+#   scale_fill_viridis_d(name = "Basin",
+#                        option = "B", begin = 0.35, end = 0.75) +
+#   # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
+#   
+#   # facet_rep_wrap(.~ floy_tag, repeat.tick.labels = TRUE,
+#   #                # ncol = 1
+#   # ) +
+#   theme_classic(base_size = 15) +
+#   theme(panel.grid = element_blank(),
+#         strip.text = element_blank(),
+#         axis.text = element_text(colour = "black"),
+#         legend.position = c(0.95, 0.92),
+#         legend.background = element_blank(),
+#         legend.title = element_text(hjust = 0.5),
+#         legend.text = element_text(hjust = 0.5)) +
+#   labs(x = "Date",
+#        y = expression(paste("Standard Metabolism (mg", 
+#                             O[2]," ", kg^-1, " ", h^-1, ")"))) -> p 
+# 
+# p
+# write_rds(p, here("Plot Objects", 
+#                   "daily_smr_GAMM_plot.rds"))
+# 
+# 
+# ggsave(plot = p, filename = here("plots",
+#                                  "Daily GAMM Plots",
+#                                  "gamm_smr_doy.png"), width = 11,
+#        height = 7 )
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# cols <- rev(rainbow(6)[-6])
+# 
+# ggplot(predicts) +
+#   geom_rect(data = rect_summer, aes(xmin = xmin,
+#                                     xmax = xmax,
+#                                     ymin = ymin,
+#                                     ymax = ymax),
+#             fill = "grey80",
+#             alpha = 0.75,
+#             inherit.aes = FALSE) +
+#   geom_rect(data = rect_winter, aes(xmin = xmin,
+#                                     xmax = xmax,
+#                                     ymin = ymin,
+#                                     ymax = ymax),
+#             fill ="grey80",
+#             alpha = 0.75,
+#             inherit.aes = FALSE) +
+#   # geom_text(
+#   #   aes(x = xmin + 25, y = 64, label = season),
+#   #   data = rect_summer,
+#   #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   # geom_text(
+#   #   aes(x = xmin + 30, y = 64, label = season),
+#   #   data = rect_winter,
+#   #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   
+#   geom_point(data = mean_smr, aes(x = doy, y = mean_smr,
+#                                   fill = mean_temp,
+#                                   # shape = fish_basin
+#   ), size = 3, colour = "black", stroke = 0.25, shape = 21) +
+#   geom_line(
+#     aes(x = doy, y = fit, 
+#         # linetype = fish_basin
+#     ), colour = "black", 
+#     linewidth = 1) +
+#   geom_ribbon( 
+#     aes(ymin = lower,
+#         ymax = upper,
+#         x = doy, y = fit, 
+#         # group = fish_basin,
+#     ), alpha = 0.10) +
+#   
+#   scale_y_continuous(breaks = seq(20, 60, 10)) +
+#   scale_x_continuous(breaks = seq(25, 350, 65), 
+#                      label = month_label) +
+#   # scale_colour_viridis_c(name = "Temperature (°C)",
+#   #                        option = "B", begin = 0.35, end = 0.75) +
+#   scale_fill_gradientn(colours = alpha(cols, f = 0.35), 
+#                        name = "Temperature (°C)",
+#                        breaks = seq(2, 10, 2), 
+#                        guide = guide_colorbar(frame.colour = "black", 
+#                                               ticks.colour = "black")
+#   ) +
+#   scale_shape_manual(name = "Basin", values = 21:23 
+#   ) +
+#   scale_linetype("Basin") + 
+#   # scale_fill_viridis_c(name = ,
+#   #                      option = "B", begin = 0.35, end = 0.75) +
+#   # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
+#   
+#   facet_wrap(.~ fish_basin,
+#              # repeat.tick.labels = TRUE,
+#              ncol = 1
+#   ) +
+#   theme_classic(base_size = 15) +
+#   theme(panel.grid = element_blank(),
+#         # strip.text = element_blank(),
+#         axis.text = element_text(colour = "black"),
+#         axis.title.y = element_text(hjust = 0.20),
+#         legend.position = c(0.89, 0.90),
+#         legend.background = element_blank(),
+#         legend.title = element_text(hjust = 0.5),
+#         legend.text = element_text(hjust = 0.5)) +
+#   labs(
+#     x = "", 
+#     # x = "Date",
+#     y = expression(paste("Standard Metabolism (mg", 
+#                          O[2]," ", kg^-1, " ", h^-1, ")"))) -> p2
+# 
+# # p2
+# # ggsave(plot = p2, filename = here("plots",
+# #                                   "Daily GAMM Plots",
+# #                                   "gamm_smr_doy_temp.png"), width = 7,
+# #        height = 11)
+# 
+# 
+# ggplot(predicts) +
+#   # geom_rect(data = rect_summer, aes(xmin = xmin,
+#   #                                   xmax = xmax,
+#   #                                   ymin = ymin,
+#   #                                   ymax = ymax),
+#   #           fill = "grey80",
+#   #           alpha = 0.75,
+#   #           inherit.aes = FALSE) +
+#   # geom_rect(data = rect_winter, aes(xmin = xmin,
+#   #                                   xmax = xmax,
+#   #                                   ymin = ymin,
+#   #                                   ymax = ymax),
+# #           fill ="grey80",
+# #           alpha = 0.75,
+# #           inherit.aes = FALSE) +
+# # geom_text(
+# #   aes(x = xmin + 25, y = 64, label = season),
+# #   data = rect_summer,
+# #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+# # geom_text(
+# #   aes(x = xmin + 30, y = 64, label = season),
+# #   data = rect_winter,
+# #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+# 
+# # geom_point(data = mean_smr, aes(x = doy, y = mean_smr,
+# #                                 fill = mean_temp,
+# #                                 shape = fish_basin
+# # ), size = 3, colour = "black", stroke = 0.25) +
+# geom_line(
+#   aes(x = doy, y = fit, 
+#       linetype = fish_basin
+#   ), colour = "black", 
+#   linewidth = 1) +
+#   geom_ribbon( 
+#     aes(ymin = lower,
+#         ymax = upper,
+#         x = doy, y = fit, 
+#         group = fish_basin,
+#     ), alpha = 0.10) +
+#   
+#   scale_y_continuous(breaks = seq(20, 60, 10)) +
+#   scale_x_continuous(breaks = seq(25, 350, 65), 
+#                      label = month_label) +
+#   # scale_colour_viridis_c(name = "Temperature (°C)",
+#   #                        option = "B", begin = 0.35, end = 0.75) +
+#   scale_fill_gradientn(colours = alpha(cols, f = 0.35), 
+#                        name = "Temperature (°C)",
+#                        breaks = seq(2, 10, 2), 
+#                        guide = guide_colorbar(frame.colour = "black", 
+#                                               ticks.colour = "black")
+#   ) +
+#   scale_shape_manual(name = "Basin", values = 21:23 
+#   ) +
+#   scale_linetype("Basin") + 
+#   # scale_fill_viridis_c(name = ,
+#   #                      option = "B", begin = 0.35, end = 0.75) +
+#   # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
+#   
+#   # facet_wrap(.~ fish_basin,
+#   # repeat.tick.labels = TRUE,
+#   #            ncol = 2
+#   # ) +
+#   theme_classic(base_size = 15) +
+#   theme(panel.grid = element_blank(),
+#         strip.text = element_blank(),
+#         axis.text = element_text(colour = "black"),
+#         legend.position = c(0.85, 0.87),
+#         legend.background = element_blank(),
+#         legend.title = element_text(hjust = 0.5),
+#         legend.text = element_text(hjust = 0.5)) +
+#   labs(x = "Date",
+#        y = ""
+#        # y = expression(paste("Standard Metabolism (mg", 
+#        # O[2]," ", kg^-1, " ", h^-1, ")"))
+#   ) -> p3
+# 
+# 
+# 
+# 
+# p4 <- p2 / p3 + 
+#   plot_layout(heights = c(3, 1))
+# 
+# # library(gtable)
+# # pg <- ggplotGrob(p2)
+# # qg <- ggplotGrob(p3)
+# # 
+# # pl <- gtable_filter(pg, 'panel', trim=F)$layout
+# # pg <- gtable_add_grob(pg, qg, t=max(pl$t), l=max(pl$l))
+# # 
+# # grid.newpage()
+# # grid.draw(pg)
+# 
+# 
+# write_rds(p2, here("Plot Objects", 
+#                    "daily_smr_GAMM_plot_temp.rds"))
+# 
+# 
+# ggsave(plot = p4, filename = here("plots",
 #                                   "Daily GAMM Plots",
-#                                   "gamm_smr_doy_temp.png"), width = 7,
-#        height = 11)
-
-
-ggplot(predicts) +
-  # geom_rect(data = rect_summer, aes(xmin = xmin,
-  #                                   xmax = xmax,
-  #                                   ymin = ymin,
-  #                                   ymax = ymax),
-  #           fill = "grey80",
-  #           alpha = 0.75,
-  #           inherit.aes = FALSE) +
-  # geom_rect(data = rect_winter, aes(xmin = xmin,
-  #                                   xmax = xmax,
-  #                                   ymin = ymin,
-  #                                   ymax = ymax),
-#           fill ="grey80",
-#           alpha = 0.75,
-#           inherit.aes = FALSE) +
-# geom_text(
-#   aes(x = xmin + 25, y = 64, label = season),
-#   data = rect_summer,
-#   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-# geom_text(
-#   aes(x = xmin + 30, y = 64, label = season),
-#   data = rect_winter,
-#   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-
-# geom_point(data = mean_smr, aes(x = doy_id, y = mean_smr,
-#                                 fill = mean_temp,
-#                                 shape = fish_basin
-# ), size = 3, colour = "black", stroke = 0.25) +
-geom_line(
-  aes(x = doy_id, y = fit, 
-      linetype = fish_basin
-  ), colour = "black", 
-  linewidth = 1) +
-  geom_ribbon( 
-    aes(ymin = lower,
-        ymax = upper,
-        x = doy_id, y = fit, 
-        group = fish_basin,
-    ), alpha = 0.10) +
-  
-  scale_y_continuous(breaks = seq(20, 60, 10)) +
-  scale_x_continuous(breaks = seq(25, 350, 65), 
-                     label = month_label) +
-  # scale_colour_viridis_c(name = "Temperature (°C)",
-  #                        option = "B", begin = 0.35, end = 0.75) +
-  scale_fill_gradientn(colours = alpha(cols, f = 0.35), 
-                       name = "Temperature (°C)",
-                       breaks = seq(2, 10, 2), 
-                       guide = guide_colorbar(frame.colour = "black", 
-                                              ticks.colour = "black")
-  ) +
-  scale_shape_manual(name = "Basin", values = 21:23 
-  ) +
-  scale_linetype("Basin") + 
-  # scale_fill_viridis_c(name = ,
-  #                      option = "B", begin = 0.35, end = 0.75) +
-  # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
-  
-  # facet_wrap(.~ fish_basin,
-  # repeat.tick.labels = TRUE,
-  #            ncol = 2
-  # ) +
-  theme_classic(base_size = 15) +
-  theme(panel.grid = element_blank(),
-        strip.text = element_blank(),
-        axis.text = element_text(colour = "black"),
-        legend.position = c(0.85, 0.87),
-        legend.background = element_blank(),
-        legend.title = element_text(hjust = 0.5),
-        legend.text = element_text(hjust = 0.5)) +
-  labs(x = "Date",
-       y = ""
-       # y = expression(paste("Standard Metabolism (mg", 
-       # O[2]," ", kg^-1, " ", h^-1, ")"))
-  ) -> p3
-
-
-
-
-p4 <- p2 / p3 + 
-  plot_layout(heights = c(3, 1))
-
-# library(gtable)
-# pg <- ggplotGrob(p2)
-# qg <- ggplotGrob(p3)
+#                                   "gamm_smr_doy_temp_a.png"), width = 7,
+#        height = 12)
 # 
-# pl <- gtable_filter(pg, 'panel', trim=F)$layout
-# pg <- gtable_add_grob(pg, qg, t=max(pl$t), l=max(pl$l))
 # 
-# grid.newpage()
-# grid.draw(pg)
-
-
-write_rds(p2, here("Plot Objects", 
-                   "daily_smr_GAMM_plot_temp.rds"))
-
-
-ggsave(plot = p4, filename = here("plots",
-                                  "Daily GAMM Plots",
-                                  "gamm_smr_doy_temp_a.png"), width = 7,
-       height = 12)
-
-
-
-
-
-p5 <-  ggplot(predicts) +
-  geom_rect(data = rect_summer, aes(xmin = xmin,
-                                    xmax = xmax,
-                                    ymin = ymin,
-                                    ymax = ymax),
-            fill = "grey80",
-            alpha = 0.75,
-            inherit.aes = FALSE) +
-  geom_rect(data = rect_winter, aes(xmin = xmin,
-                                    xmax = xmax,
-                                    ymin = ymin,
-                                    ymax = ymax),
-            fill ="grey80",
-            alpha = 0.75,
-            inherit.aes = FALSE) +
-  geom_text(
-    aes(x = xmin + 30, y = 64, label = season),
-    data = rect_summer,
-    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  geom_text(
-    aes(x = xmin + 32, y = 64, label = season),
-    data = rect_winter,
-    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  # geom_text(
-  #   aes(x = xmin + 25, y = 64, label = season),
-  #   data = rect_summer,
-  #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  # geom_text(
-  #   aes(x = xmin + 30, y = 64, label = season),
-  #   data = rect_winter,
-  #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  
-  geom_point(data = mean_smr, aes(x = doy_id, y = mean_smr,
-                                  fill = mean_temp,
-                                  # shape = fish_basin
-  ), size = 3, colour = "black", stroke = 0.25, shape = 21) +
-  geom_line(
-    aes(x = doy_id, y = fit, 
-        linetype = fish_basin
-    ), colour = "black", 
-    linewidth = 1) +
-  geom_ribbon( 
-    aes(ymin = lower,
-        ymax = upper,
-        x = doy_id, y = fit, 
-        group = fish_basin,
-    ), alpha = 0.10) +
-  
-  scale_y_continuous(breaks = seq(20, 60, 10)) +
-  scale_x_continuous(breaks = seq(25, 350, 65), 
-                     label = month_label) +
-  # scale_colour_viridis_c(name = "Temperature (°C)",
-  #                        option = "B", begin = 0.35, end = 0.75) +
-  scale_fill_gradientn(colours = alpha(cols, f = 0.35), 
-                       name = "Temperature (°C)",
-                       breaks = seq(2, 10, 2), 
-                       guide = guide_colorbar(frame.colour = "black", 
-                                              ticks.colour = "black")
-  ) +
-  scale_shape_manual(name = "Basin", values = 21:23 
-  ) +
-  scale_linetype("Basin") + 
-  # scale_fill_viridis_c(name = ,
-  #                      option = "B", begin = 0.35, end = 0.75) +
-  # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
-  
-  # facet_wrap(.~ fish_basin,
-  # repeat.tick.labels = TRUE,
-  # ncol = 1
-  # ) +
-  theme_classic(base_size = 15) +
-  theme(panel.grid = element_blank(),
-        # strip.text = element_blank(),
-        axis.text = element_text(colour = "black"),
-        # axis.title.y = element_text(hjust = 0.20),
-        legend.position = c(0.89, 0.75),
-        legend.background = element_blank(),
-        legend.title = element_text(hjust = 0.5),
-        legend.text = element_text(hjust = 0.5)) +
-  labs(
-    x = "", 
-    # x = "Date",
-    y = expression(paste("Standard Metabolism (mg", 
-                         O[2]," ", kg^-1, " ", h^-1, ")"))) 
-
-ggsave(plot = p5, filename = here("plots",
-                                  "Daily GAMM Plots",
-                                  "gamm_smr_doy_temp_mike.png"), width = 11,
-       height = 7)
-
-
-# ------------ plot each fish's profile facted --------
-dat_3 <- ful_temp 
-
-glimpse(dat_3)
-
-# use prediction to get interpolated points 
-fits_id <- predict.bam(m, newdata = dat_3,  
-                       type = "response", se = TRUE)
-
-
-
-# calcuate lower and upper ci per id add month abb 
-pred_id <- data.frame(dat_3, fits_id) %>% 
-  mutate(lower = fit - 1.96 * se.fit,
-         upper = fit + 1.96 * se.fit,
-         month_abb = month(date, label = TRUE, abbr = TRUE), 
-         month_abb = factor(month_abb, 
-                            levels = c("May", "Jun", "Jul", 
-                                       "Aug", "Sep", "Oct",
-                                       "Nov", "Dec", "Jan",
-                                       "Feb", "Mar", "Apr"))) %>% 
-  arrange(floy_tag, doy_id)
-
-
-
-# double check that predicts looks correct 
-glimpse(pred_id)
-# create month labels 
-pred_id %>% 
-  filter(doy_id %in% seq(25, 350, 65)) %>% 
-  group_by(month_abb) %>% 
-  summarise() %>% 
-  .$month_abb -> month_label 
-month_label
-
-# ---- plot 2017 - 2020 gamm with mean daily temp per ID ------
-ggplot() +
-  geom_point(data = ful_temp, aes(x = doy_id, y = mean_smr,
-                                  colour = fish_basin,
-  ), alpha = 0.25, size = 2) +
-  geom_line(data = pred_id, 
-            aes(x = doy_id, y = fit, colour = fish_basin), size = 1) +
-  geom_ribbon(data = pred_id, 
-              aes(ymin = lower,
-                  ymax = upper,
-                  x = doy_id, y = fit,
-                  fill = fish_basin), alpha = 0.5) +
-  # scale_y_continuous(breaks = seq(20, 60, 10)
-  # ) +
-  scale_x_continuous(breaks = seq(25, 350, 65), 
-                     label = month_label) +
-  scale_colour_viridis_d(name = "Basin",
-                         option = "B", begin = 0.35, end = 0.75) +
-  scale_shape_discrete(name = "Basin") +
-  scale_fill_viridis_d(name = "Basin",
-                       option = "B", begin = 0.35, end = 0.75) +
-  # scale_x_date(date_breaks = "4 month", date_labels = "%b %Y") + 
-  
-  facet_rep_wrap(.~ floy_tag, repeat.tick.labels = FALSE,
-                 # ncol = 1
-  ) +
-  theme_classic(base_size = 15) +
-  theme(panel.grid = element_blank(),
-        axis.text = element_text(colour = "black"),
-        # axis.text.x = element_text(angle = 45, hjust = 1),
-        # legend.position = c(0.95, 0.14),
-        legend.background = element_blank(),
-        legend.title = element_text(hjust = 0.5),
-        legend.text = element_text(hjust = 0.5)) +
-  labs(
-    x = "Date",
-    y = expression(paste("Standard Metabolism (mg", 
-                         O[2]," ", kg^-1, " ", h^-1, ")"))) -> p1
-
-p1
-
-ggsave(plot = p1, filename = here("plots",
-                                  "Individual Plots",
-                                  "gamm_smr_2017_2021_id.png"),
-       width = 11 * 2,
-       height = 7 * 2.15)
-
+# 
+# 
+# 
+# p5 <-  ggplot(predicts) +
+#   geom_rect(data = rect_summer, aes(xmin = xmin,
+#                                     xmax = xmax,
+#                                     ymin = ymin,
+#                                     ymax = ymax),
+#             fill = "grey80",
+#             alpha = 0.75,
+#             inherit.aes = FALSE) +
+#   geom_rect(data = rect_winter, aes(xmin = xmin,
+#                                     xmax = xmax,
+#                                     ymin = ymin,
+#                                     ymax = ymax),
+#             fill ="grey80",
+#             alpha = 0.75,
+#             inherit.aes = FALSE) +
+#   geom_text(
+#     aes(x = xmin + 30, y = 64, label = season),
+#     data = rect_summer,
+#     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   geom_text(
+#     aes(x = xmin + 32, y = 64, label = season),
+#     data = rect_winter,
+#     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   # geom_text(
+#   #   aes(x = xmin + 25, y = 64, label = season),
+#   #   data = rect_summer,
+#   #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   # geom_text(
+#   #   aes(x = xmin + 30, y = 64, label = season),
+#   #   data = rect_winter,
+#   #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+#   
+#   geom_point(data = mean_smr, aes(x = doy, y = mean_smr,
+#                                   fill = mean_temp,
+#                                   # shape = fish_basin
+#   ), size = 3, colour = "black", stroke = 0.25, shape = 21) +
+#   geom_line(
+#     aes(x = doy, y = fit, 
+#         linetype = fish_basin
+#     ), colour = "black", 
+#     linewidth = 1) +
+#   geom_ribbon( 
+#     aes(ymin = lower,
+#         ymax = upper,
+#         x = doy, y = fit, 
+#         group = fish_basin,
+#     ), alpha = 0.10) +
+#   
+#   scale_y_continuous(breaks = seq(20, 60, 10)) +
+#   scale_x_continuous(breaks = seq(25, 350, 65), 
+#                      label = month_label) +
+#   # scale_colour_viridis_c(name = "Temperature (°C)",
+#   #                        option = "B", begin = 0.35, end = 0.75) +
+#   scale_fill_gradientn(colours = alpha(cols, f = 0.35), 
+#                        name = "Temperature (°C)",
+#                        breaks = seq(2, 10, 2), 
+#                        guide = guide_colorbar(frame.colour = "black", 
+#                                               ticks.colour = "black")
+#   ) +
+#   scale_shape_manual(name = "Basin", values = 21:23 
+#   ) +
+#   scale_linetype("Basin") + 
+#   # scale_fill_viridis_c(name = ,
+#   #                      option = "B", begin = 0.35, end = 0.75) +
+#   # scale_x_date(date_breaks = "2 month", date_labels = "%b %Y") +
+#   
+#   # facet_wrap(.~ fish_basin,
+#   # repeat.tick.labels = TRUE,
+#   # ncol = 1
+#   # ) +
+#   theme_classic(base_size = 15) +
+#   theme(panel.grid = element_blank(),
+#         # strip.text = element_blank(),
+#         axis.text = element_text(colour = "black"),
+#         # axis.title.y = element_text(hjust = 0.20),
+#         legend.position = c(0.89, 0.75),
+#         legend.background = element_blank(),
+#         legend.title = element_text(hjust = 0.5),
+#         legend.text = element_text(hjust = 0.5)) +
+#   labs(
+#     x = "", 
+#     # x = "Date",
+#     y = expression(paste("Standard Metabolism (mg", 
+#                          O[2]," ", kg^-1, " ", h^-1, ")"))) 
+# 
+# ggsave(plot = p5, filename = here("plots",
+#                                   "Daily GAMM Plots",
+#                                   "gamm_smr_doy_temp_mike.png"), width = 11,
+#        height = 7)
+# 
+# 
+# # ------------ plot each fish's profile facted --------
+# dat_3 <- ful_temp 
+# 
+# glimpse(dat_3)
+# 
+# # use prediction to get interpolated points 
+# fits_id <- predict.bam(m, newdata = dat_3,  
+#                        type = "response", se = TRUE)
+# 
+# 
+# 
+# # calcuate lower and upper ci per id add month abb 
+# pred_id <- data.frame(dat_3, fits_id) %>% 
+#   mutate(lower = fit - 1.96 * se.fit,
+#          upper = fit + 1.96 * se.fit,
+#          month_abb = month(date, label = TRUE, abbr = TRUE), 
+#          month_abb = factor(month_abb, 
+#                             levels = c("May", "Jun", "Jul", 
+#                                        "Aug", "Sep", "Oct",
+#                                        "Nov", "Dec", "Jan",
+#                                        "Feb", "Mar", "Apr"))) %>% 
+#   arrange(floy_tag, doy)
+# 
+# 
+# 
+# # double check that predicts looks correct 
+# glimpse(pred_id)
+# # create month labels 
+# pred_id %>% 
+#   filter(doy %in% seq(25, 350, 65)) %>% 
+#   group_by(month_abb) %>% 
+#   summarise() %>% 
+#   .$month_abb -> month_label 
+# month_label
+# 
+# # ---- plot 2017 - 2020 gamm with mean daily temp per ID ------
+# ggplot() +
+#   geom_point(data = ful_temp, aes(x = doy, y = mean_smr,
+#                                   colour = fish_basin,
+#   ), alpha = 0.25, size = 2) +
+#   geom_line(data = pred_id, 
+#             aes(x = doy, y = fit, colour = fish_basin), size = 1) +
+#   geom_ribbon(data = pred_id, 
+#               aes(ymin = lower,
+#                   ymax = upper,
+#                   x = doy, y = fit,
+#                   fill = fish_basin), alpha = 0.5) +
+#   # scale_y_continuous(breaks = seq(20, 60, 10)
+#   # ) +
+#   scale_x_continuous(breaks = seq(25, 350, 65), 
+#                      label = month_label) +
+#   scale_colour_viridis_d(name = "Basin",
+#                          option = "B", begin = 0.35, end = 0.75) +
+#   scale_shape_discrete(name = "Basin") +
+#   scale_fill_viridis_d(name = "Basin",
+#                        option = "B", begin = 0.35, end = 0.75) +
+#   # scale_x_date(date_breaks = "4 month", date_labels = "%b %Y") + 
+#   
+#   facet_rep_wrap(.~ floy_tag, repeat.tick.labels = FALSE,
+#                  # ncol = 1
+#   ) +
+#   theme_classic(base_size = 15) +
+#   theme(panel.grid = element_blank(),
+#         axis.text = element_text(colour = "black"),
+#         # axis.text.x = element_text(angle = 45, hjust = 1),
+#         # legend.position = c(0.95, 0.14),
+#         legend.background = element_blank(),
+#         legend.title = element_text(hjust = 0.5),
+#         legend.text = element_text(hjust = 0.5)) +
+#   labs(
+#     x = "Date",
+#     y = expression(paste("Standard Metabolism (mg", 
+#                          O[2]," ", kg^-1, " ", h^-1, ")"))) -> p1
+# 
+# p1
+# 
+# ggsave(plot = p1, filename = here("plots",
+#                                   "Individual Plots",
+#                                   "gamm_smr_2017_2021_id.png"),
+#        width = 11 * 2,
+#        height = 7 * 2.15)
+# 
