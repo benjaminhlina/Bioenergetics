@@ -11,3 +11,12 @@ Scope_of_activity_and_AS_gamm_plot_basin.rds
 areobic_activity_gamm_plot_basin.rds
 areobic_activity_gamm_plot_no_basin.rds
 mmr_rmr_smr.rds
+Scope_of_activity_and_AS_gamm_plot.rds
+Scope_of_activity_and_AS_gamm_plot_inverse.rds
+Scope_of_activity_and_AS_gamm_plot_jan.rds
+Scope_of_activity_gamm_plot.rds
+daily_mmr_GAMM_plot.rds
+daily_mmr_GAMM_plot_basin.rds
+daily_smr_GAMM_plot_temp.rds
+daily_temp_GAMM_plot_update.rds
+mmr_rmr_smr_jan.rds
