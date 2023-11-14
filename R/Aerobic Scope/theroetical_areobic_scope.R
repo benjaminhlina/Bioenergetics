@@ -58,8 +58,8 @@ plot(fit_norm)
 
 dat <- dat %>% 
   group_by(year) %>% 
-  arrange(year, doy_id) %>% 
-  mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE, 
+  arrange(year, doy) %>% 
+  mutate(start_event = if_else(doy == min(doy), true = TRUE, 
                                false = FALSE), 
          year = factor(year)) %>% 
   ungroup() %>% 
@@ -68,7 +68,7 @@ dat <- dat %>%
 
 
 dat %>% 
-  filter(doy_id %in% seq(25, 350, 65)) %>% 
+  filter(doy %in% seq(25, 350, 65)) %>% 
   mutate(
     month_abb = month(date, label = TRUE)
   ) %>% 
@@ -85,19 +85,19 @@ dat %>%
 month_labels
 
 #  --------- start GAMM--------
-m <- bam(aerobic_scope ~  s(doy_id, bs = "cc", k = 15) + 
-           # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(14, 3)) + 
+m <- bam(aerobic_scope ~  s(doy, bs = "cc", k = 17) + 
+           # ti(doy, fish_basin, bs = c("cc", "fs"), k = c(14, 3)) + 
            s(floy_tag,  bs = "re") + 
            s(year, bs = "re"), 
-         # family = gaussian(link = "log"), 
-         family = Gamma(link = "inverse"),
+         # family = gaussian(link = "log"),
+         family = Gamma(link = "identity"),
          method = "fREML",
          data = dat, 
          select = TRUE
 )
 
 
-acf(resid_gam(m))
+# acf(resid_gam(m))
 
 r1 <- itsadug::start_value_rho(m, plot = TRUE, lag = 17)
 r1
@@ -110,12 +110,15 @@ m1 <- update(m,
 )
 
 
-par(mfrow = c(2, 2))
-gam.check(m)
-gam.check(m1)
-plot(m)
+# par(mfrow = c(2, 2))
+# gam.check(m)
+# gam.check(m1)
+# plot(m)
+# l <- appraise(m1)
+# l
+# draw(m1)
 
-
+# ggsave(plot = l, filename = "l.png", width = 11, height = 8.5)
 # -------- predict from model ---------
 # look at overall effect terms -----
 m_overall <- anova.gam(m1, freq = FALSE)
@@ -163,24 +166,23 @@ fits <- predict.gam(m1, newdata = dat_2,
 # add in month abb for plotting 
 predicts <- data.frame(dat_2, fits) %>% 
   mutate(
-    
-    # lower = fit - 1.96 * se.fit,
-    lower = 1/(fit - 1.96 * se.fit),
-    # upper = fit + 1.96 * se.fit, 
-    upper = 1/(fit + 1.96 * se.fit),
-    fit = 1/(fit)
+    lower = (fit - 1.96 * se.fit),
+    upper = (fit + 1.96 * se.fit),
+    # lower = exp(1) ^ (fit - 1.96 * se.fit),
+    # upper = exp(1) ^ (fit + 1.96 * se.fit),
+    # fit =  exp(1) ^ (fit)
     ) %>% 
-  arrange(doy_id)
+  arrange(doy)
 
 
 
 write_rds(predicts, here("Saved Data", 
-                         "aerobic_scope_gamma_predict.rds"))
+                         "aerobic_scope_gamma_predict_jan.rds"))
 # figure out where your shading for summer and winter goes 
 predicts %>% 
   group_by(season) %>% 
-  summarise(first = first(doy_id),
-            last = last(doy_id)) %>% 
+  summarise(first = first(doy),
+            last = last(doy)) %>% 
   ungroup()
 
 rect_summer <- tibble(
@@ -203,7 +205,7 @@ rect_winter <- tibble(
 
 
 as <- dat %>% 
-  group_by(doy_id
+  group_by(doy
   ) %>% 
   summarise(
     mean_as = mean(aerobic_scope), 
@@ -212,7 +214,8 @@ as <- dat %>%
   ) %>% 
   ungroup()
 
-
+write_rds(as, here::here("model objects", 
+                         "mean_as_jan.rds"))
 ggplot() + 
   geom_rect(data = rect_summer, aes(xmin = xmin,
                                     xmax = xmax,
@@ -236,23 +239,23 @@ ggplot() +
     aes(x = xmin + 32, y = 231.25, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  geom_point(data = as, aes(x = doy_id, y = mean_as, 
+  geom_point(data = as, aes(x = doy, y = mean_as, 
                              # colour = fish_basin
                             ), 
              size = 3, alpha = 0.5) + 
-  # geom_errorbar(data = as, aes(x = doy_id, y = mean_as, 
+  # geom_errorbar(data = as, aes(x = doy, y = mean_as, 
   #                            colour = fish_basin, 
   #                            ymin = mean_as - sem_as, 
   #                            ymax = mean_as + sem_as, 
   #                            ), width = 0.1) + 
   geom_line(data = predicts, 
-            aes(x = doy_id, y = fit, 
+            aes(x = doy, y = fit, 
                 # colour = fish_basin
                 ), size = 1) +
   geom_ribbon(data = predicts, 
               aes(ymin = lower,
                   ymax = upper,
-                  x = doy_id, y = fit,
+                  x = doy, y = fit,
                   # fill = fish_basin
                   ), alpha = 0.25) +
   scale_fill_viridis_d(name = "Basin",
