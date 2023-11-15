@@ -57,8 +57,9 @@ ful_rmr <- ful %>%
                               "Novemeber", "December", "January",
                               "February", "March", "April")), 
     doy_id = days(date, end = "05-22"), 
-    season = forcats::fct_relevel(season, "Spring", "Summer", 
-                                  "Fall", "Winter")
+    season = forcats::fct_relevel(season, "Winter", 
+                                  "Spring", "Summer", 
+                                  "Fall", )
   ) %>% 
   arrange(date) %>% 
   dplyr::select(floy_tag:sensor_unit, doy, doy_id, mean_rmr)
