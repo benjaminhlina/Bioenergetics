@@ -142,6 +142,26 @@ m11 <- update(m, . ~
                 ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
               
 )
+m12 <- update(m, . ~ 
+                # fish_basin  + 
+                s(doy_id, 
+                  # by = fish_basin, 
+                  bs = "cc", k = 20) +
+                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
+                #   k = c(20, 4)) +
+                ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
+              
+)
+m13 <- update(m, . ~ 
+                # fish_basin  + 
+                s(doy_id, 
+                  # by = fish_basin, 
+                  bs = "cc", k = 20) 
+                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
+                #   k = c(20, 4)) +
+                # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
+              
+)
 
 
 
@@ -226,13 +246,14 @@ AIC(m19)
 # create model list for model selection ------
 model_list <- list(m, m1, m2, 
                    m3, m4, m5, m6, m7,
-                   m8, m9, m10, m11, m19, m20, m21
+                   m8, m9, m10, m11, m12, m13, m19, m20, m21
 )
 # give the elements useful names
 names(model_list) <- c("m", 
                        "m1", "m2",
                        "m3", "m4", "m5", "m6", "m7",
-                       "m8", "m9", "m10", "m11", "m19", "m20", "m21"
+                       "m8", "m9", "m10", "m11", "m12", "m13",
+                       "m19", "m20", "m21"
 )
 glance(m)
 
