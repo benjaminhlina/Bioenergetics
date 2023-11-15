@@ -229,7 +229,7 @@ m18 <- bam(fs ~ fish_basin  +
                k = c(2)
              ),
            method = "fREML",
-           family = gaussian(link = "identity"),
+           family = gaussian(link = "inverse"),
            data = fs, 
            select = TRUE
 )
@@ -318,15 +318,16 @@ glimpse(fs_2)
 # use prediction to get interpolated points 
 fits <- predict.bam(m19, newdata = fs_2, se = TRUE, discrete = FALSE,
                     exclude = c("s(year)"),
-                    newfsa.guaranteed = TRUE)
+                    newdata.guaranteed = TRUE)
 
 
 
 # combine fits with fsaframe for plotting and calc upper and lower 
 # add in month abb for plotting 
 predicts <- data.frame(fs_2, fits) %>% 
-  mutate(lower = fit - 1.96 * se.fit,
-         upper = fit + 1.96 * se.fit, 
+  mutate(lower = 1 / (fit - 1.96 * se.fit),
+         upper = 1 / (fit + 1.96 * se.fit), 
+         fit = 1 / fit, 
          month_abb = month(date, label = TRUE, abbr = TRUE), 
          month_abb = factor(month_abb, 
                             levels = c("Jan",
