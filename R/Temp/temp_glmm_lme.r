@@ -54,8 +54,8 @@ ful_temp <- ful %>%
                                    "August", "September", "October",
                                    "Novemeber", "December", "January",
                                    "February", "March", "April")),
-    season = forcats::fct_relevel(season, "Spring", "Summer", 
-                                  "Fall", "Winter")) %>% 
+    season = forcats::fct_relevel(season, "Winter", "Spring", "Summer", 
+                                  "Fall")) %>% 
   arrange(month) %>%
   mutate(doy_id = days(date))
 # remove big objects to free up RAM -----
