@@ -442,7 +442,7 @@ pred_id <- data.frame(dat_3, fits_id) %>%
                                        "Aug", "Sep", "Oct",
                                        "Nov", "Dec", "Jan",
                                        "Feb", "Mar", "Apr"))) %>% 
-  arrange(floy_tag, doy_id)
+  arrange(floy_tag, doy)
 
 
 
@@ -450,7 +450,7 @@ pred_id <- data.frame(dat_3, fits_id) %>%
 glimpse(pred_id)
 # create month labels 
 pred_id %>% 
-  filter(doy_id %in% seq(25, 350, 65)) %>% 
+  filter(doy %in% seq(25, 350, 65)) %>% 
   group_by(month_abb) %>% 
   summarise() %>% 
   .$month_abb -> month_label 
@@ -463,14 +463,14 @@ month_label
 
 # ---- plot 2017 - 2020 gamm with mean daily temp per ID ------
 ggplot() +
-  geom_point(data = ful_rmr, aes(x = doy_id, y = mean_rmr,
+  geom_point(data = ful_rmr, aes(x = doy, y = mean_rmr,
                                  colour = fish_basin,
   ), alpha = 0.25, size = 2) +
   geom_line(data = pred_id, 
-            aes(x = doy_id, y = fit, colour = fish_basin), size = 1) +
+            aes(x = doy, y = fit, colour = fish_basin), size = 1) +
   geom_ribbon(data = pred_id, aes(ymin = lower,
                                   ymax = upper,
-                                  x = doy_id, y = fit,
+                                  x = doy, y = fit,
                                   fill = fish_basin), alpha = 0.5) +
   # scale_y_continuous(breaks = seq(20, 60, 10)
   # ) +
