@@ -273,35 +273,64 @@ predicts %>%
   filter(month %in% "May" & year == 2019) %>% 
   tail()
 
-# create month labels 
-predicts %>% 
-  filter(doy_id %in% seq(09, 344, 67)) %>%
-  group_by(month_abb) %>% 
-  summarise() %>% 
-  .$month_abb -> month_label 
+
+month_doy <- predicts %>%
+  group_by(month_abb) %>%
+  summarise(first = first(doy),
+            last = last(doy)) %>%
+  ungroup() %>%
+  mutate(
+    # month_abb = forcats::fct_relevel(month_abb, "Jan",
+    #                                  "Feb", "Mar", "Apr", "May", "Jun",
+    #                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  ) %>%
+  arrange(month_abb) %>%
+  mutate(
+    # first = case_when(
+      # month_abb %in% "May" ~ 1,
+      # month_abb %in% "June" ~ 10 + 20, false = first
+    # )
+  ) %>%
+  .$first
+
+month_doy
+# month_doy <- c(1, 32, 62, 93, 123, 154, 184, 215, 246, 274, 305, 335)
+predicts %>%
+  filter(doy %in% month_doy) %>%
+  group_by(month_abb) %>%
+  summarise() %>%
+  # mutate(
+  #   month_abb = forcats::fct_relevel(month_abb, "Jan",
+  #                                    "Feb", "Mar", "Apr", "May", "Jun",
+  #                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  # ) %>%
+  arrange(month_abb) %>%
+  .$month_abb -> month_label
 month_label
 
 # plotting prep -------
 
 # figure out where your shading for summer and winter goes 
-predicts %>% 
-  group_by(season) %>% 
-  summarise(first = first(doy_id),
-            last = last(doy_id)) %>% 
-  ungroup()
 
 rect_summer <- tibble(
   season = "Summer",
-  xmin = 10,
-  xmax = 101,
+  xmin = 152,
+  xmax = 244,
   ymin = -Inf,
   ymax = Inf
 )
 
 rect_winter <- tibble(
   season = "Winter",
-  xmin = 193,
-  xmax = 283,
+  xmin = 1,
+  xmax = 60,
+  ymin = -Inf,
+  ymax = Inf
+)
+rect_winter_dec <- tibble(
+  season = "Winter",
+  xmin = 335,
+  xmax = 365,
   ymin = -Inf,
   ymax = Inf
 )
