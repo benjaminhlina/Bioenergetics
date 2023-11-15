@@ -37,21 +37,75 @@ ful_temp <- read_rds(here("Saved Data",
 temp <- read_rds(here("Saved Data", 
                       "daily_temp_range_measured.rds"))
 predicts <- read_rds(here("model objects", 
-                          "temp_gamm_predicts_a.rds"))
+                          "temp_gamm_predicts_update_jan.rds"))
 
 glimpse(ful_temp)
 glimpse(temp)
 
 
-predicts %>% 
-  filter(doy_id %in% seq(25, 350, 65)) %>% 
-  group_by( month_abb) %>% 
-  summarise() %>% 
-  .$month_abb -> month_label 
+# plotting prep -------
+month_doy <- predicts %>%
+  group_by(month_abb) %>%
+  summarise(first = first(doy),
+            last = last(doy)) %>%
+  ungroup() %>%
+  mutate(
+    # month_abb = forcats::fct_relevel(month_abb, "Jan",
+    #                                  "Feb", "Mar", "Apr", "May", "Jun",
+    #                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  ) %>%
+  arrange(month_abb) %>%
+  mutate(
+    # first = case_when(
+    # month_abb %in% "May" ~ 1,
+    # month_abb %in% "June" ~ 10 + 20, false = first
+    # )
+  ) %>%
+  .$first
 
-predicts %>% 
-  filter(doy_id == 155) %>% 
-  as_tibble()
+month_doy
+# month_doy <- c(1, 32, 62, 93, 123, 154, 184, 215, 246, 274, 305, 335)
+predicts %>%
+  filter(doy %in% month_doy) %>%
+  group_by(month_abb) %>%
+  summarise() %>%
+  # mutate(
+  #   month_abb = forcats::fct_relevel(month_abb, "Jan",
+  #                                    "Feb", "Mar", "Apr", "May", "Jun",
+  #                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+  # ) %>%
+  arrange(month_abb) %>%
+  .$month_abb -> month_label
+month_label
+
+# plotting prep -------
+
+# figure out where your shading for summer and winter goes 
+
+rect_summer <- tibble(
+  season = "Summer",
+  xmin = 152,
+  xmax = 244,
+  ymin = -Inf,
+  ymax = Inf
+)
+
+rect_winter <- tibble(
+  season = "Winter",
+  xmin = 1,
+  xmax = 60,
+  ymin = -Inf,
+  ymax = Inf
+)
+rect_winter_dec <- tibble(
+  season = "Winter",
+  xmin = 335,
+  xmax = 365,
+  ymin = -Inf,
+  ymax = Inf
+)
+
+
 
 temp <- temp %>% 
   mutate(
@@ -60,6 +114,9 @@ temp <- temp %>%
 
 
 temp_sum <- temp %>% 
+  mutate(
+    doy = yday(daily)
+  ) %>% 
   group_by(doy) %>% 
   summarise(
     md_temp  = mean(mdt), 
@@ -77,7 +134,7 @@ temp_sum
 temp_combo <- ful_temp %>% 
   left_join(
     temp_sum, 
-    by = c("doy_id" = "doy"), 
+    by = c("doy" = "doy"), 
     multiple = "all"
   )
 
@@ -96,7 +153,7 @@ glimpse(temp_comb_long)
 
 glimpse(temp_combo)
 
-ggplot(data = temp_combo, aes(x = doy_id, y = mean_temp)) + 
+ggplot(data = temp_combo, aes(x = doy, y = mean_temp)) + 
   geom_point(aes(color = fish_basin), 
              size = 2) + 
   geom_ribbon(aes(ymin = min_temps, 
@@ -112,6 +169,7 @@ ggplot(data = temp_combo, aes(x = doy_id, y = mean_temp)) +
   labs(x = "Day of Year", 
        y = "Daily Temperature (°C) Used") -> p
 
+
 p
 
 
@@ -119,7 +177,7 @@ p
 glimpse(temp_combo)
 
 sum_temp_comb <- temp_combo %>% 
-  group_by(doy_id, fish_basin, season) %>% 
+  group_by(doy, fish_basin, season) %>% 
   summarise(
     
     mean_fish_temp = mean(mean_temp),
@@ -134,28 +192,28 @@ sum_temp_comb <- temp_combo %>%
   )
 
 
-rect_summer <- tibble(
-  season = "Summer",
-  xmin = 32,
-  xmax = 123,
-  ymin = -Inf,
-  ymax = Inf
-)
-
-rect_winter <- tibble(
-  season = "Winter",
-  xmin = 220,
-  xmax = 305,
-  ymin = -Inf,
-  ymax = Inf
-)
+# rect_summer <- tibble(
+#   season = "Summer",
+#   xmin = 32,
+#   xmax = 123,
+#   ymin = -Inf,
+#   ymax = Inf
+# )
+# 
+# rect_winter <- tibble(
+#   season = "Winter",
+#   xmin = 220,
+#   xmax = 305,
+#   ymin = -Inf,
+#   ymax = Inf
+# )
 
 season_line <- tibble(
   xmark = c(32, 123, 220, 305)
 )
 glimpse(predicts)
 
-ggplot(data = sum_temp_comb, aes(x = doy_id, 
+ggplot(data = sum_temp_comb, aes(x = doy, 
                                  y = mean_fish_temp)) + 
   geom_rect(data = rect_summer, aes(xmin = xmin,
                                     xmax = xmax,
@@ -177,6 +235,16 @@ ggplot(data = sum_temp_comb, aes(x = doy_id,
             colour = "black",
             linetype = 3,
             inherit.aes = FALSE) +
+  geom_rect(data = rect_winter_dec, aes(xmin = xmin,
+                                    xmax = xmax,
+                                    ymin = ymin,
+                                    ymax = ymax),
+            fill = NA,
+            linewidth = 0.8,
+            # alpha = 0.75,
+            colour = "black",
+            linetype = 3,
+            inherit.aes = FALSE) +
   # geom_vline(data = season_line,
   #            aes(xintercept = xmark),
   #            # fill = NA,
@@ -188,12 +256,16 @@ ggplot(data = sum_temp_comb, aes(x = doy_id,
   #            ) +
 
   geom_text(
-    aes(x = xmin + 30, y = 12.25, label = season),
+    aes(x = xmin + 33, y = 13, label = season),
     data = rect_summer,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 32, y = 12.25, label = season),
+    aes(x = xmin + 15, y = 13, label = season),
     data = rect_winter,
+    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+  geom_text(
+    aes(x = xmin + 5, y = 13, label = season),
+    data = rect_winter_dec,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   # geom_linerange(aes(ymin = mean_fish_temp - sem,
   #                    ymax = mean_fish_temp + sem,
@@ -210,17 +282,17 @@ ggplot(data = sum_temp_comb, aes(x = doy_id,
   alpha = 0.15) + 
   
   geom_line(data = predicts, 
-            aes(x = doy_id, y = .fitted, colour = fish_basin), 
+            aes(x = doy, y = fit, colour = fish_basin), 
             linewidth = 1) +
-  geom_ribbon(data = predicts, 
+  geom_ribbon(data = predicts,
               aes(ymin = lower,
                   ymax = upper,
-                  x = doy_id, y = fit,
+                  x = doy, y = fit,
                   fill = fish_basin), alpha = 0.25) +
   scale_y_continuous(breaks = seq(0, 27.5, 2.5), 
                      limits = c(0, 13)
   ) +
-  scale_x_continuous(breaks = seq(25, 350, 65), 
+  scale_x_continuous(breaks = month_doy, 
                      label = month_label) +
   scale_colour_viridis_d(name = "Basin",
                          option = "B", begin = 0.35, end = 0.75) +
@@ -246,7 +318,7 @@ cols <- rev(rainbow(6)[-6])
 
 sum_temp_comb %>% 
   pivot_longer(
-    cols = -c(doy_id:mean_fish_temp), 
+    cols = -c(doy:mean_fish_temp), 
     names_to = "min_max", 
     values_to = "water_temp"
   ) %>% 
@@ -300,7 +372,7 @@ ggsave(filename = here("Plots",
 
 ggplot(data = sum_temp_comb %>% 
          filter(fish_basin == "North"), 
-       aes(x = doy_id, 
+       aes(x = doy, 
            y = mean_fish_temp)) + 
   geom_point(aes(color = fish_basin), 
              size = 2) + 
