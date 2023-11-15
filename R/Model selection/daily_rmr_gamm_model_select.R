@@ -152,16 +152,6 @@ m12 <- update(m, . ~
                 ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
               
 )
-m13 <- update(m, . ~ 
-                # fish_basin  + 
-                s(doy_id, 
-                  # by = fish_basin, 
-                  bs = "cc", k = 20) 
-                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                #   k = c(20, 4)) +
-                # ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
 
 
 
