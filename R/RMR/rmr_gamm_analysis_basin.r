@@ -241,11 +241,12 @@ predicts <- data.frame(dat_2, fits) %>%
          upper = fit + 1.96 * se.fit, 
          month_abb = month(date, label = TRUE, abbr = TRUE), 
          month_abb = factor(month_abb, 
-                            levels = c("May", "Jun", "Jul", 
+                            levels = c( "Jan",
+                                       "Feb", "Mar", "Apr", 
+                                       "May", "Jun", "Jul", 
                                        "Aug", "Sep", "Oct",
-                                       "Nov", "Dec", "Jan",
-                                       "Feb", "Mar", "Apr"))) %>% 
-  arrange(floy_tag, doy_id)
+                                       "Nov", "Dec"))) %>% 
+  arrange(floy_tag, doy)
 
 # double check that predicts looks correct 
 glimpse(predicts) 
@@ -258,7 +259,7 @@ glimpse(predicts)
 #   summarise(mean_rmr = mean(m_swim)) %>%
 #   ungroup() -> mean_rmr_right
 ful_rmr %>%
-  group_by(doy_id, fish_basin) %>%
+  group_by(doy, fish_basin) %>%
   summarise(mean_rmr = mean(mean_rmr)) %>%
   ungroup() -> mean_rmr
 
