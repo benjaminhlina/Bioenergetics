@@ -351,30 +351,41 @@ ggplot(data = predicts) +
             fill ="grey80",
             alpha = 0.75,
             inherit.aes = FALSE) +
+  geom_rect(data = rect_winter_dec, aes(xmin = xmin,
+                                    xmax = xmax,
+                                    ymin = ymin,
+                                    ymax = ymax),
+            fill ="grey80",
+            alpha = 0.75,
+            inherit.aes = FALSE) +
   geom_text(
-    aes(x = xmin + 30, y = 125, label = season),
+    aes(x = xmin + 33, y = 125, label = season),
     data = rect_summer,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 32, y = 125, label = season),
+    aes(x = xmin + 17.5, y = 125, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  # geom_point(data = mean_rmr, aes(x = doy_id, y = mean_rmr,
+  geom_text(
+    aes(x = xmin + 5, y = 125, label = season),
+    data = rect_winter_dec,
+    size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+  # geom_point(data = mean_rmr, aes(x = doy, y = mean_rmr,
   #                                  colour = fish_basin,
   # ), alpha = 0.25, size = 2.75) +
-  geom_point(data = mean_rmr, aes(x = doy_id, y = mean_rmr,
+  geom_point(data = mean_rmr, aes(x = doy, y = mean_rmr,
                                   colour = fish_basin,
   ), alpha = 0.5, size = 3) +
   
   geom_line(
-    aes(x = doy_id, y = fit, colour = fish_basin), linewidth = 1) +
+    aes(x = doy, y = fit, colour = fish_basin), linewidth = 1) +
   geom_ribbon(
     aes(ymin = lower,
         ymax = upper,
-        x = doy_id, y = fit,
+        x = doy, y = fit,
         fill = fish_basin), alpha = 0.25) +
   scale_y_continuous(breaks = seq(45, 135, 15)) +
-  scale_x_continuous(breaks = seq(09, 344, 67),
+  scale_x_continuous(breaks = month_doy,
                      label = month_label) +
   scale_colour_viridis_d(name = "Basin",
                          option = "B", begin = 0.35, end = 0.75) +
