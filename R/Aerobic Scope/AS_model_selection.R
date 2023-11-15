@@ -154,16 +154,7 @@ m12 <- update(m, . ~
                 ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
               
 )
-m13 <- update(m, . ~ 
-                # fish_basin  + 
-                s(doy, 
-                  # by = fish_basin, 
-                  bs = "cc", k = 17) 
-              # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-              #   k = c(20, 4)) +
-              # ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
+
 
 
 
@@ -186,7 +177,7 @@ m18 <- bam(aerobic_scope ~ fish_basin  +
 
 acf(resid_gam(m18))
 
-r1 <- itsadug::start_value_rho(m18, plot = TRUE, lag = 11)
+r1 <- itsadug::start_value_rho(m18, plot = TRUE, lag = 17)
 r1
 
 
