@@ -170,7 +170,7 @@ m18 <- bam(aerobic_scope ~ fish_basin  +
              s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
                k = c(20, 4)),
            method = "fREML",
-           family = Gamma(link = "log"),
+           family = Gamma(link = "identity"),
            data = dat, 
            select = TRUE
 )
