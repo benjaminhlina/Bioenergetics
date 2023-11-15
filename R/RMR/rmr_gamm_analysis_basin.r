@@ -58,12 +58,12 @@ glimpse(ful)
 #                               "August", "September", "October",
 #                               "Novemeber", "December", "January",
 #                               "February", "March", "April")),
-#     doy_id = days(date, end = "05-22"),
+#     doy = days(date, end = "05-22"),
 #     season = forcats::fct_relevel(season, "Spring", "Summer",
 #                                   "Fall", "Winter")
 #   ) %>%
 #   arrange(date) %>%
-#   dplyr::select(floy_tag:sensor_unit, doy, doy_id, mean_rmr)
+#   dplyr::select(floy_tag:sensor_unit, doy, doy, mean_rmr)
 # glimpse(ful_rmr)
 # 
 # write_rds(ful_rmr, here("Saved Data",
@@ -120,8 +120,8 @@ ggplot(data = ful_rmr, aes(x = mean_rmr)) +
 #        y = "Daily Temperature (°C)")
 ful_rmr <-  ful_rmr %>% 
   group_by(floy_tag, year) %>% 
-  arrange(floy_tag, year, doy_id) %>% 
-  mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE, 
+  arrange(floy_tag, year, doy) %>% 
+  mutate(start_event = if_else(doy == min(doy), true = TRUE, 
                                false = FALSE)) %>% 
   ungroup() %>% 
   arrange(date, start_event)
@@ -134,9 +134,9 @@ glimpse(ful_rmr)
 
 # -----------------------START GAMMS -------------------------------
 m <- bam(mean_rmr ~ fish_basin + 
-           s(doy_id, by = fish_basin, bs = "cc", k = 20) +
+           s(doy, by = fish_basin, bs = "cc", k = 20) +
            s(floy_tag, by = fish_basin, bs = c("re")) + 
-           ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3)),  
+           ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3)),  
          method = "fREML",
          family = Gamma(link = "identity"),
          data = ful_rmr, 
@@ -151,10 +151,10 @@ r1
 
 
 m1 <- update(m, . ~ fish_basin  + 
-               s(doy_id, by = fish_basin, bs = "cc", k = 20) +
+               s(doy, by = fish_basin, bs = "cc", k = 20) +
                s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
                  k = c(20, 4)) +
-               ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3)), 
+               ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3)), 
              discrete = TRUE,
              rho = r1, 
              AR.start = ful_rmr$start_event
@@ -165,6 +165,9 @@ gam.check(m)
 # summary(m)
 gam.check(m1)
 summary(m1)
+
+appraise(m1)
+
 # look at overall effect terms -----
 m_overall <- anova.gam(m1, freq = FALSE)
 
@@ -191,25 +194,27 @@ ind_parm
 smoothers
 m_glance
 
+
+
 # =---- save summaries ------
-
-overall_parm %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "RMR results",
-                                  "gamm_rmr_param_overall.xlsx"))
-ind_parm %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "RMR results",
-                                  "gamm_rmr_param_ind.xlsx"))
-
-smoothers %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "RMR results",
-                                  "gamm_rmr_smoothers.xlsx"))
-m_glance %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "RMR results",
-                                  "gamm_rmr_model_fit.xlsx"))
+# 
+# overall_parm %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "RMR results",
+#                                   "gamm_rmr_param_overall.xlsx"))
+# ind_parm %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "RMR results",
+#                                   "gamm_rmr_param_ind.xlsx"))
+# 
+# smoothers %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "RMR results",
+#                                   "gamm_rmr_smoothers.xlsx"))
+# m_glance %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "RMR results",
+#                                   "gamm_rmr_model_fit.xlsx"))
 # pridicted model --------
 
 # create new datafreame with dummmy variables for RE for plotting 
