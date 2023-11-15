@@ -34,17 +34,24 @@ max_rmr <- vi$data %>%
   arrange(season, fish_basin)
 
 sig_let <- tibble(
-  letter = c(rep("A", 2), "AE", "BC", rep("B", 2), 
-             "CD", "D", "DE", rep("F", 3)),
+  letter = c(rep("A", 3), rep("B", 2),"BF", "CD", rep("C", 2), 
+             "DE", "D", "DF"),
   x = c(0.7, 1, 1.3, 1.7, 2, 2.3, 
         2.7, 3, 3.3, 3.7, 4, 4.3),
   y = rep(3, 12)
 )
 
-
+# Spring, summer, Fall, Winter
+# 
+# c(rep("A", 2), "AE", "BC", rep("B", 2), 
+#   "CD", "D", "DE", rep("F", 3))
+# 
+# c(rep("A", 3), rep("B", 2),"BF", "CD", rep("C", 2), 
+#              "DE", "D", "DF")
 gam <- gam + 
   theme(
-    plot.tag.position = c(0.1, 0.97),
+    legend.position = "none", 
+    plot.tag.position = c(0.09, 0.97),
     plot.tag = element_text(face = "bold")
   )
 
@@ -55,18 +62,19 @@ vi_2 <- vi +
                                 label = letter), 
             size = 5) + 
   theme(
-    legend.position = "none", 
-    plot.tag.position = c(0.1, 0.97),
+    # legend.position = "none", 
+    legend.position =  c(0.95, 0.98),
+    plot.tag.position = c(0.09, 0.97),
     plot.tag = element_text(face = "bold")
   )
 
 p3 <- gam / vi_2 + 
   plot_annotation(tag_levels = "a", 
                   tag_suffix = ")")
-p3
+# p3
 
 ggsave(plot = p3, filename = here("plots",
                                   "Combined GAMM and Violin", 
-                                  "gamm_violin_rmr_doy.png"), 
+                                  "gamm_violin_rmr_doy_jan.png"), 
        width = 11,
        height = 7 * 2)
