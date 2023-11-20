@@ -22,7 +22,7 @@ library(tibble)
 # bring temp data for model selection ------
 
 ful_rmr <- read_rds(here("Saved Data", 
-                          "Daily_RMR.rds"))
+                         "Daily_RMR.rds"))
 
 
 
@@ -33,7 +33,8 @@ ful_rmr <-  ful_rmr %>%
   group_by(floy_tag, year) %>% 
   arrange(floy_tag, year, doy_id) %>% 
   mutate(start_event = if_else(doy_id == min(doy_id), true = TRUE, 
-                               false = FALSE)) %>% 
+                               false = FALSE), 
+         year = factor(year)) %>% 
   ungroup() %>% 
   arrange(date, start_event)
 
@@ -48,8 +49,11 @@ glimpse(ful_rmr)
 
 m <- bam(mean_rmr ~ fish_basin  + 
            s(doy_id, by = fish_basin, bs = "cc", k = 20) +
-           s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             k = c(20, 4)), method = "fREML",
+           s(floy_tag, by = fish_basin, bs = c("re"), 
+             k = c(20)) + 
+           s(year, by = fish_basin, bs = c("re"), 
+             k = c(4)), 
+         method = "fREML",
          family = Gamma(link = "identity"),
          data = ful_rmr, 
          select = TRUE
@@ -74,8 +78,10 @@ m2 <- update(m, . ~
 m3 <- update(m, . ~ 
                # fish_basin  + 
                s(doy_id, by = fish_basin, bs = "cc", k = 20) +
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-                 k = c(20, 4))
+               s(floy_tag, by = fish_basin, bs = c("re"), 
+                 k = c(20)) + 
+               s(year, by = fish_basin, bs = c("re"), 
+                 k = c(4))
 )
 
 m4 <- update(m, . ~ 
@@ -88,8 +94,10 @@ m4 <- update(m, . ~
 m5 <- update(m, . ~ 
                # fish_basin  + 
                # s(doy_id, by = fish_basin, bs = "cc", k = 20) +
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-                 k = c(20, 4))
+               s(floy_tag, by = fish_basin, bs = c("re"), 
+                 k = c(20)) + 
+               s(year, by = fish_basin, bs = c("re"), 
+                 k = c(4)), 
 )
 
 m6 <- update(m, . ~ 
@@ -102,16 +110,20 @@ m6 <- update(m, . ~
 m7 <- update(m, . ~ 
                fish_basin  + 
                s(doy_id, bs = "cc", k = 20) +
-               s(floy_tag, year, bs = c("re", "re"), 
-                 k = c(20, 4))
+               s(floy_tag, by = fish_basin, bs = c("re"), 
+                 k = c(20)) + 
+               s(year, by = fish_basin, bs = c("re"), 
+                 k = c(4)), 
 )
 
 
 m8 <- update(m, . ~ 
                fish_basin  + 
                s(doy_id, by = fish_basin, bs = "cc", k = 20) + 
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                 k = c(20, 4)) +
+               s(floy_tag, by = fish_basin, bs = c("re"), 
+                 k = c(20)) + 
+               s(year, by = fish_basin, bs = c("re"), 
+                 k = c(4)) +
                ti(doy_id, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
              
 )
@@ -154,8 +166,23 @@ m12 <- update(m, . ~
 )
 
 
-
-
+m13 <- update(m, . ~ 
+                # fish_basin  + 
+                s(doy_id, bs = "cc", k = 20) + 
+                s(floy_tag, by = fish_basin, bs = c("re"), 
+                  k = c(20)) + 
+                s(year, by = fish_basin, bs = c("re"), 
+                  k = c(4))
+              # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
+              #   k = c(20, 4)) + 
+)
+r1 <- itsadug::start_value_rho(m13, plot = TRUE, lag = 11)
+r1
+m14 <- update(m13,
+              discrete = TRUE,
+              rho = r1, 
+              AR.start = start_event
+)
 
 
 
@@ -236,13 +263,13 @@ AIC(m19)
 # create model list for model selection ------
 model_list <- list(m, m1, m2, 
                    m3, m4, m5, m6, m7,
-                   m8, m9, m10, m11, m12, m13, m19, m20, m21
+                   m8, m9, m10, m11, m12, m13, m14, m19, m20, m21
 )
 # give the elements useful names
 names(model_list) <- c("m", 
                        "m1", "m2",
                        "m3", "m4", "m5", "m6", "m7",
-                       "m8", "m9", "m10", "m11", "m12", "m13",
+                       "m8", "m9", "m10", "m11", "m12", "m13", "m14",
                        "m19", "m20", "m21"
 )
 glance(m)
@@ -263,7 +290,7 @@ glance_summary <- map_df(glance_list, ~as.data.frame(.x), .id = "id") %>%
 glance_summary
 
 glance_summary <- glance_summary %>% 
-  mutate(model = case_when(id %in% c("m20", "m19", "m21") ~ paste(model, 
+  mutate(model = case_when(id %in% c("m20", "m19", "m21", "m14") ~ paste(model, 
                                                                   "ACF", 
                                                                   sep = " + "),
                            TRUE ~ model), 
@@ -379,7 +406,7 @@ ggplot(predicts) +
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_point(data = rmr_mean, aes(x = doy_id, y = mean_rmr,
-                                   colour = fish_basin,
+                                  colour = fish_basin,
   ), alpha = 0.5, size = 3) +
   
   geom_line(
@@ -392,7 +419,7 @@ ggplot(predicts) +
   scale_y_continuous(breaks = seq(45, 135, 15)) +
   scale_x_continuous(breaks = seq(10, 350, 65), 
                      label = month_label
-                     ) +
+  ) +
   scale_colour_viridis_d(name = "Basin",
                          option = "B", begin = 0.35, end = 0.75) +
   scale_shape_discrete(name = "Basin") +

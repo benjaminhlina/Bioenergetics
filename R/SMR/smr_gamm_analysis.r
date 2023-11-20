@@ -188,10 +188,11 @@ ful_temp <- ful_temp %>%
 # possibly add temp used to then model what temps fish may see 
 # -----------------------START GAMMS -------------------------------
 m <- bam(mean_smr ~ 
-           s(doy, bs = "cc", k = 15) +
+           s(doy, bs = "cc", k = 18) +
            s(floy_tag, bs = c( "re"), 
              k = c(20)) +
-           s(year, bs = "re"), 
+           s(year, bs = "re", 
+             k = c(4)), 
          
          method = "fREML",
          family = Gamma(link = "inverse"),
@@ -210,7 +211,7 @@ m1 <- update(m, discrete = TRUE,
              rho = r1, 
              AR.start = start_event)
 m2 <- bam(mean_smr ~ 
-           s(doy, bs = "cc", k = 15) +
+           s(doy, bs = "cc", k = 18) +
            s(floy_tag, bs = c( "re"), 
              k = c(20)) +
            s(year, bs = "re"), 
@@ -234,7 +235,8 @@ m3 <- update(m2, discrete = TRUE,
 
 
 
-
+summary(m3)
+summary(m1)
 # check model fit -----
 # par(mfrow = c(2, 2))
 # gam.check(m1)

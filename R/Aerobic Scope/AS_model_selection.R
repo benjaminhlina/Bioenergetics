@@ -35,7 +35,8 @@ dat <-  dat %>%
   group_by(floy_tag, year) %>% 
   arrange(floy_tag, year, doy) %>% 
   mutate(start_event = if_else(doy == min(doy), true = TRUE, 
-                               false = FALSE)) %>% 
+                               false = FALSE), 
+         year = factor(year)) %>% 
   ungroup() %>% 
   arrange(date, start_event)
 
@@ -48,10 +49,13 @@ glimpse(dat)
 
 
 
-m <- bam(aerobic_scope ~ fish_basin  + 
-           s(doy, by = fish_basin, bs = "cc", k = 17) +
-           s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             k = c(20, 4)), method = "fREML",
+m <- bam(aerobic_scope ~ 
+           s(doy, bs = "cc", k = 17) +
+           s(floy_tag,  bs = c("re"),
+             k = c(20)) +
+           s(year, bs = c("re"), 
+             k = c(4)),
+         method = "fREML",
          family = Gamma(link = "identity"),
          data = dat, 
          select = TRUE
@@ -59,197 +63,119 @@ m <- bam(aerobic_scope ~ fish_basin  +
 
 
 m1 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17)
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             # k = c(20, 4))
+               s(doy, bs = "cc", k = 17) +
+               s(floy_tag,  bs = c("re"), 
+                 k = c(20)) 
+             # s(year, bs = c("re"), 
+             #   k = c(4)),
 )
 
 
 m2 <- update(m, . ~ 
-               fish_basin  
-             # s(doy, by = fish_basin, bs = "cc", k = 17) +
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             #   k = c(20, 4))
+               s(doy, bs = "cc", k = 17) +
+               # s(floy_tag,  bs = c("re"), 
+               #   k = c(20)) + 
+               s(year, bs = c("re"), 
+                 k = c(4)),
 )
 
 m3 <- update(m, . ~ 
                # fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17) +
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-                 k = c(20, 4))
+               # s(doy, bs = "cc", k = 17) +
+               s(floy_tag,  bs = c("re"), 
+                 k = c(20)) + 
+               s(year, bs = c("re"), 
+                 k = c(4))
 )
-
 m4 <- update(m, . ~ 
                # fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17)
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             # k = c(20, 4))
+               # s(doy, bs = "cc", k = 17) +
+               # s(floy_tag,  bs = c("re"), 
+               #   k = c(20)) + 
+               s(year, bs = c("re"), 
+                 k = c(4))
 )
-
 m5 <- update(m, . ~ 
                # fish_basin  + 
-               # s(doy, by = fish_basin, bs = "cc", k = 17) +
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-                 k = c(20, 4))
+               # s(doy, bs = "cc", k = 17) +
+               s(floy_tag,  bs = c("re"),
+                 k = c(20)) 
+             # s(year, bs = c("re"), 
+             #   k = c(4))
 )
-
-m6 <- update(m, . ~ 
-               # fish_basin  + 
-               s(doy, bs = "cc", k = 17)
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             #   k = c(20, 4)) + 
-)
-
-m7 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, bs = "cc", k = 17) +
-               s(floy_tag, year, bs = c("re", "re"), 
-                 k = c(20, 4))
-)
-
-
-m8 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17) + 
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                 k = c(20, 4)) +
-               ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-             
-)
-
-m9 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17) + 
-               # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-               #   k = c(20, 4)) +
-               ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-             
-)
-
-m10 <- update(m, . ~ 
-                fish_basin  + 
-                # s(doy, by = fish_basin, bs = "cc", k = 17) + 
-                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                #   k = c(20, 4)) +
-                ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
-
-m11 <- update(m, . ~ 
-                # fish_basin  + 
-                s(doy, by = fish_basin, bs = "cc", k = 17) +
-                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                #   k = c(20, 4)) +
-                ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
-m12 <- update(m, . ~ 
-                # fish_basin  + 
-                s(doy, 
-                  # by = fish_basin, 
-                  bs = "cc", k = 17) +
-                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                #   k = c(20, 4)) +
-                ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
-
-
-
-
-
-
 
 
 
 
 # m and m18 are the same m19 invlovles an autocorelation structure 
-m18 <- bam(aerobic_scope ~ fish_basin  + 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)),
-           method = "fREML",
-           family = Gamma(link = "identity"),
-           data = dat, 
-           select = TRUE
-)
+# m18 <- bam(mean_mmr ~ fish_basin  + 
+#              s(doy, bs = "cc", k = 17) +
+#              s(floy_tag,  bs = c("re"), 
+#                k = c(20)) + 
+#              s(year, bs = c("re"), 
+#                k = c(4)),
+#            method = "fREML",
+#            family = Gamma(link = "inverse"),
+#            data = ful_mmr, 
+#            select = TRUE
+# )
 
-acf(resid_gam(m18))
+acf(resid_gam(m))
 
-r1 <- itsadug::start_value_rho(m18, plot = TRUE, lag = 17)
+r1 <- itsadug::start_value_rho(m, plot = TRUE, lag = 17)
 r1
 
 
 
 
-m19 <- bam(aerobic_scope ~ fish_basin  + 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)), method = "fREML",
-           family = Gamma(link = "identity"),
-           data = dat, 
-           select = TRUE, 
-           discrete = TRUE,
-           rho = r1, 
-           AR.start = dat$start_event
-           
+m6 <- update(m, 
+             discrete = TRUE,
+             rho = r1, 
+             AR.start = start_event
+             
 )
-
-
-m20 <- bam(aerobic_scope ~ fish_basin  + 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)) +
-             ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3)),
-           method = "fREML",
-           family = Gamma(link = "identity"),
-           data = dat, 
-           select = TRUE, 
-           discrete = TRUE,
-           rho = r1, 
-           AR.start = dat$start_event
-           
-)
-
-m21 <- bam(aerobic_scope ~ 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)), 
-           method = "fREML",
-           family = Gamma(link = "identity"),
-           data = dat, 
-           select = TRUE, 
-           discrete = TRUE,
-           rho = r1, 
-           AR.start = dat$start_event
-           
-)
-
-
-acf(resid_gam(m19))
-acf(resid_gam(m20))
-
-
-# anova(m18, m19, test = "F")
-AIC(m18)
-AIC(m19)
-
-
 # create model list for model selection ------
 model_list <- list(m, m1, m2, 
-                   m3, m4, m5, m6, m7,
-                   m8, m9, m10, m11, m12, m13, m19, m20, m21
+                   m3, m4, m5, m6
+                   # m7,
+                   # m8, m9, m10, m11, m12, m13, m19, m20, m21
 )
 # give the elements useful names
 names(model_list) <- c("m", 
                        "m1", "m2",
-                       "m3", "m4", "m5", "m6", "m7",
-                       "m8", "m9", "m10", "m11", "m12", "m13",
-                       "m19", "m20", "m21"
+                       "m3", "m4", "m5", "m6"
+                       # "m7",
+                       # "m8", "m9", "m10", "m11", "m12", "m13",
+                       # "m19", "m20", "m21"
 )
 glance(m)
 
+
+
+m_overall <- anova.gam(m6, freq = FALSE)
+
+# grab parametic overall effect 
+overall_parm <- m_overall$pTerms.table %>% 
+  as_tibble(rownames = "terms") %>% 
+  clean_names()
+# grab inddial effect 
+ind_parm <- tidy(m6, parametric = TRUE) %>% 
+  clean_names()
+# smoother effect 
+smoothers <- tidy(m6) %>% 
+  clean_names()
+
+# model comparison and fit info 
+m_glance <- glance(m6) %>% 
+  clean_names()
+
+
+# view all model info ----
+
+overall_parm
+ind_parm
+smoothers
+m_glance
 # get the summaries using `lapply
 
 summary_list <- lapply(model_list, function(x) tidy(x, parametric = TRUE))
@@ -266,7 +192,7 @@ glance_summary <- map_df(glance_list, ~as.data.frame(.x), .id = "id") %>%
 glance_summary
 
 glance_summary <- glance_summary %>% 
-  mutate(model = case_when(id %in% c("m20", "m19", "m21") ~ paste(model, 
+  mutate(model = case_when(id %in% c("m6") ~ paste(model, 
                                                                   "ACF", 
                                                                   sep = " + "),
                            TRUE ~ model), 
@@ -275,7 +201,7 @@ glance_summary <- glance_summary %>%
   ) %>% 
   dplyr::select(model:AIC, delta_AIC, AIC_weight, BIC:df.residual)
 
-
+glance_summary
 glance_summary %>%
   openxlsx::write.xlsx(here::here("results",
                                   "AS results",
@@ -293,7 +219,7 @@ dat_2 <- dat %>%
   )
 
 glimpse(dat_2)
-
+134851.
 # use prediction to get interpolated points 
 fits <- predict.bam(m20, newdata = dat_2, 
                     type = "response", se = TRUE, discrete = FALSE,

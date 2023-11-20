@@ -228,15 +228,15 @@ fits <- predict.gam(m1, newdata = dat_2, se.fit = TRUE, exclude = "s(year)"
 predicts <- data.frame(dat_2, fits) %>% 
   mutate(
     
-    lower = 1 / (fit - 1.96 * se.fit),
-    upper = 1 / (fit + 1.96 * se.fit),
+    upper = 1 / (fit - 1.96 * se.fit),
+    lower = 1 / (fit + 1.96 * se.fit),
     fit = 1 / fit
     # lower = exp(1) ^ (fit - 1.96 * se.fit),
     # upper = exp(1) ^ (fit + 1.96 * se.fit),
     # fit = exp(1) ^ fit
     ) %>% 
   arrange(doy)
-
+predicts
 write_rds(predicts, here("Saved Data", 
                          "scope_for_activity_gamma_predict.rds"))
 # figure out where your shading for summer and winter goes 

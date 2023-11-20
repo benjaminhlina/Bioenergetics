@@ -33,7 +33,8 @@ ful_mmr <-  ful_mmr %>%
   group_by(floy_tag, year) %>% 
   arrange(floy_tag, year, doy) %>% 
   mutate(start_event = if_else(doy == min(doy), true = TRUE, 
-                               false = FALSE)) %>% 
+                               false = FALSE), 
+         year = factor(year)) %>% 
   ungroup() %>% 
   arrange(date, start_event)
 
@@ -46,204 +47,146 @@ glimpse(ful_mmr)
 
 
 
-m <- bam(mean_mmr ~ fish_basin  + 
-           s(doy, by = fish_basin, bs = "cc", k = 17) +
-           s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             k = c(20, 4)), method = "fREML",
-         family = Gamma(link = "identity"),
+m <- bam(mean_mmr ~ 
+           s(doy, bs = "cc", k = 17) +
+           s(floy_tag,  bs = c("re"), 
+               k = c(20)) + 
+           s(year, bs = c("re"), 
+             k = c(4)),
+         family = Gamma(link = "inverse"),
          data = ful_mmr, 
          select = TRUE
 )
 
 
 m1 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17)
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             # k = c(20, 4))
+               s(doy, bs = "cc", k = 17) +
+               s(floy_tag,  bs = c("re"), 
+                 k = c(20)) 
+               # s(year, bs = c("re"), 
+               #   k = c(4)),
 )
 
 
 m2 <- update(m, . ~ 
-               fish_basin  
-             # s(doy, by = fish_basin, bs = "cc", k = 17) +
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             #   k = c(20, 4))
+               s(doy, bs = "cc", k = 17) +
+               # s(floy_tag,  bs = c("re"), 
+               #   k = c(20)) + 
+               s(year, bs = c("re"), 
+                 k = c(4)),
 )
 
 m3 <- update(m, . ~ 
                # fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17) +
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-                 k = c(20, 4))
+               # s(doy, bs = "cc", k = 17) +
+               s(floy_tag,  bs = c("re"), 
+                 k = c(20)) + 
+               s(year, bs = c("re"), 
+                 k = c(4))
 )
-
 m4 <- update(m, . ~ 
                # fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17)
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             # k = c(20, 4))
+               # s(doy, bs = "cc", k = 17) +
+               # s(floy_tag,  bs = c("re"), 
+               #   k = c(20)) + 
+               s(year, bs = c("re"), 
+                 k = c(4))
 )
-
 m5 <- update(m, . ~ 
                # fish_basin  + 
-               # s(doy, by = fish_basin, bs = "cc", k = 17) +
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-                 k = c(20, 4))
+               # s(doy, bs = "cc", k = 17) +
+               s(floy_tag,  bs = c("re"),
+                 k = c(20)) 
+               # s(year, bs = c("re"), 
+               #   k = c(4))
 )
-
-m6 <- update(m, . ~ 
-               # fish_basin  + 
-               s(doy, bs = "cc", k = 17)
-             # s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-             #   k = c(20, 4)) + 
-)
-
-m7 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, bs = "cc", k = 17) +
-               s(floy_tag, year, bs = c("re", "re"), 
-                 k = c(20, 4))
-)
-
-
-m8 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17) + 
-               s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                 k = c(20, 4)) +
-               ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-             
-)
-
-m9 <- update(m, . ~ 
-               fish_basin  + 
-               s(doy, by = fish_basin, bs = "cc", k = 17) + 
-               # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-               #   k = c(20, 4)) +
-               ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-             
-)
-
-m10 <- update(m, . ~ 
-                fish_basin  + 
-                # s(doy, by = fish_basin, bs = "cc", k = 17) + 
-                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                #   k = c(20, 4)) +
-                ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
-
-m11 <- update(m, . ~ 
-                # fish_basin  + 
-                s(doy, by = fish_basin, bs = "cc", k = 17) +
-                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                #   k = c(20, 4)) +
-                ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
-m12 <- update(m, . ~ 
-                # fish_basin  + 
-                s(doy, 
-                  # by = fish_basin, 
-                  bs = "cc", k = 17) +
-                # s(floy_tag, year, by = fish_basin, bs = c("re", "re"),
-                #   k = c(20, 4)) +
-                ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3))
-              
-)
-
-
-
-
-
 
 
 
 
 # m and m18 are the same m19 invlovles an autocorelation structure 
-m18 <- bam(mean_mmr ~ fish_basin  + 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)),
-           method = "fREML",
-           family = Gamma(link = "log"),
-           data = ful_mmr, 
-           select = TRUE
-)
+# m18 <- bam(mean_mmr ~ fish_basin  + 
+#              s(doy, bs = "cc", k = 17) +
+#              s(floy_tag,  bs = c("re"), 
+#                k = c(20)) + 
+#              s(year, bs = c("re"), 
+#                k = c(4)),
+#            method = "fREML",
+#            family = Gamma(link = "inverse"),
+#            data = ful_mmr, 
+#            select = TRUE
+# )
 
-acf(resid_gam(m18))
+acf(resid_gam(m))
 
-r1 <- itsadug::start_value_rho(m18, plot = TRUE, lag = 11)
+r1 <- itsadug::start_value_rho(m, plot = TRUE, lag = 17)
 r1
 
 
 
 
-m19 <- bam(mean_mmr ~ fish_basin  + 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)), method = "fREML",
-           family = Gamma(link = "identity"),
-           data = ful_mmr, 
-           select = TRUE, 
+m6 <- update(m, 
            discrete = TRUE,
            rho = r1, 
-           AR.start = ful_mmr$start_event
+           AR.start = start_event
            
 )
 
+# 
+# m20 <- bam(mean_mmr ~ fish_basin  + 
+#              s(doy, bs = "cc", k = 17) +
+#              s(floy_tag,  bs = c("re"), 
+#                k = c(20)) + 
+#              s(year, bs = c("re"), 
+#                k = c(4)),
+#              ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3)),
+#            method = "fREML",
+#            family = Gamma(link = "inverse"),
+#            data = ful_mmr, 
+#            select = TRUE, 
+#            discrete = TRUE,
+#            rho = r1, 
+#            AR.start = $start_event
+#            
+# )
+# 
+# m21 <- bam(mean_mmr ~ 
+#              s(doy, bs = "cc", k = 17) +
+#              s(floy_tag,  bs = c("re"), 
+#                k = c(20)) + 
+#              s(year, bs = c("re"), 
+#                k = c(4)),
+#            method = "fREML",
+#            family = Gamma(link = "inverse"),
+#            data = ful_mmr, 
+#            select = TRUE, 
+#            discrete = TRUE,
+#            rho = r1, 
+#            AR.start = start_event
+#            
+# )
 
-m20 <- bam(mean_mmr ~ fish_basin  + 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)) +
-             ti(doy, fish_basin, bs = c("cc", "fs"), k = c(20, 3)),
-           method = "fREML",
-           family = Gamma(link = "identity"),
-           data = ful_mmr, 
-           select = TRUE, 
-           discrete = TRUE,
-           rho = r1, 
-           AR.start = ful_mmr$start_event
-           
-)
 
-m21 <- bam(mean_mmr ~ 
-             s(doy, by = fish_basin, bs = "cc", k = 17) +
-             s(floy_tag, year, by = fish_basin, bs = c("re", "re"), 
-               k = c(20, 4)), 
-           method = "fREML",
-           family = Gamma(link = "identity"),
-           data = ful_mmr, 
-           select = TRUE, 
-           discrete = TRUE,
-           rho = r1, 
-           AR.start = ful_mmr$start_event
-           
-)
-
-
-acf(resid_gam(m19))
-acf(resid_gam(m20))
-
-
-# anova(m18, m19, test = "F")
-AIC(m18)
-AIC(m19)
+# acf(resid_gam(m19))
+# acf(resid_gam(m20))
+# 
+# 
+# # anova(m18, m19, test = "F")
+# AIC(m18)
+# AIC(m19)
 
 
 # create model list for model selection ------
 model_list <- list(m, m1, m2, 
-                   m3, m4, m5, m6, m7,
-                   m8, m9, m10, m11, m12, m13, m19, m20, m21
+                   m3, m4, m5, m6
+                   # m8, m9, m10, m11, m12, m13, m19, m20, m21
 )
 # give the elements useful names
 names(model_list) <- c("m", 
                        "m1", "m2",
-                       "m3", "m4", "m5", "m6", "m7",
-                       "m8", "m9", "m10", "m11", "m12", "m13",
-                       "m19", "m20", "m21"
+                       "m3", "m4", "m5", "m6", 
+                       # "m8", "m9", "m10", "m11", "m12", "m13", 
+                       # "m19", "m20", "m21"
 )
 glance(m)
 
@@ -263,7 +206,7 @@ glance_summary <- map_df(glance_list, ~as.data.frame(.x), .id = "id") %>%
 glance_summary
 
 glance_summary <- glance_summary %>% 
-  mutate(model = case_when(id %in% c("m20", "m19", "m21") ~ paste(model, 
+  mutate(model = case_when(id %in% c("7") ~ paste(model, 
                                                                   "ACF", 
                                                                   sep = " + "),
                            TRUE ~ model), 
@@ -273,6 +216,9 @@ glance_summary <- glance_summary %>%
   dplyr::select(model:AIC, delta_AIC, AIC_weight, BIC:df.residual)
 
 
+
+
+glance_summary
 glance_summary %>%
   openxlsx::write.xlsx(here::here("results",
                                   "MMR results",
@@ -368,20 +314,20 @@ ggplot(predicts) +
   #                                   xmax = xmax,
   #                                   ymin = ymin,
   #                                   ymax = ymax),
-  #           fill ="grey80",
-  #           alpha = 0.75,
-  #           inherit.aes = FALSE) +
-  # geom_text(
-  #   aes(x = xmin + 25, y = 125, label = season),
-  #   data = rect_summer,
-  #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  # geom_text(
-  #   aes(x = xmin + 30, y = 125, label = season),
-  #   data = rect_winter,
-  #   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
-  geom_point(data = mmr_mean, aes(x = doy, y = mean_mmr,
-                                  colour = fish_basin,
-  ), alpha = 0.5, size = 3) +
+#           fill ="grey80",
+#           alpha = 0.75,
+#           inherit.aes = FALSE) +
+# geom_text(
+#   aes(x = xmin + 25, y = 125, label = season),
+#   data = rect_summer,
+#   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+# geom_text(
+#   aes(x = xmin + 30, y = 125, label = season),
+#   data = rect_winter,
+#   size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
+geom_point(data = mmr_mean, aes(x = doy, y = mean_mmr,
+                                colour = fish_basin,
+), alpha = 0.5, size = 3) +
   
   geom_line(
     aes(x = doy, y = fit, colour = fish_basin), size = 1) +
