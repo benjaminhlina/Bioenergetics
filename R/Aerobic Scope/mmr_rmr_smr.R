@@ -190,15 +190,15 @@ ggplot() +
             alpha = 0.75,
             inherit.aes = FALSE) +
   geom_text(
-    aes(x = xmin + 33, y = 198.25, label = season),
+    aes(x = xmin + 31, y = 208.25, label = season),
     data = rect_summer,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 17.5, y = 198.25, label = season),
+    aes(x = xmin + 17.5, y = 208.25, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) + 
   geom_text(
-    aes(x = xmin + 5, y = 198.25, label = season),
+    aes(x = xmin + 3.75, y = 208.25, label = season),
     data = rect_winter_dec,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_point(data = met_pnts, aes(x = doy, y = est, colour = type), 
@@ -225,13 +225,13 @@ ggplot() +
                                     "Standard \nMetabolism (SMR)")) +
   scale_x_continuous(breaks = month_doy, 
                      label = month_label) +
-  scale_y_continuous(breaks = seq(0, 200, 20)) +
-  coord_cartesian(ylim = c(20, 200)) +
+  scale_y_continuous(breaks = seq(0, 220, 20)) +
+  coord_cartesian(ylim = c(20, 210)) +
   theme_classic(base_size = 15) +
   theme(panel.grid = element_blank(),
         strip.text = element_blank(),
         axis.text = element_text(colour = "black"),
-        legend.position = c(0.30, 0.92),
+        legend.position = c(0.30, 0.88),
         legend.spacing.y = unit(0.75, 'cm'),
         legend.title = element_text(hjust = 0.5),
         legend.text = element_text(hjust = 0.5),
