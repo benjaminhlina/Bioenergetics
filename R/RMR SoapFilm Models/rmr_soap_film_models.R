@@ -241,7 +241,8 @@ plake_intesects_points <- plake_intesects_points %>%
 
 
 m <- bam(mean_rmr ~ fish_basin + s(x, y, by = fish_basin,
-                                   k = 100), 
+                                   k = 100) +
+           s(floy_tag, bs = "re"), 
          method = "fREML", 
          family = Gamma(link = "log"),
          data = ful_rmr_edit, 
@@ -291,14 +292,29 @@ gc()
 #                                 "trps_lake_grid.rds"))
 
 plake_smp <- read_rds(here::here("results", 
-                                 "trps_lake_grid.rds"))
-glimpse(plake_smp)
-pred <- augment(m, newdata = plake_smp) %>% 
+                                 "trps_lake_grid.rds")) %>% 
   mutate(
-    lower = exp(1) ^ (.fitted - 1.96 * .se.fit),
-    upper = exp(1) ^ (.fitted + 1.96 * .se.fit), 
-    .fitted = exp(1) ^ .fitted
+    floy_tag = "a"
   )
+glimpse(plake_smp)
+# pred <- augment(m, newdata = plake_smp) %>% 
+#   mutate(
+#     lower = exp(1) ^ (.fitted - 1.96 * .se.fit),
+#     upper = exp(1) ^ (.fitted + 1.96 * .se.fit), 
+#     .fitted = exp(1) ^ .fitted
+#   )
+dat_2 <- ful_rmr_edit %>% 
+  mutate(
+    floy_tag = "a"
+  )
+
+pred <- augment(m, newdata = plake_smp, type.predict = "response", 
+                exclude = "s(floy_tag)")
+  # mutate(
+  #   lower = exp(1) ^ (.fitted - 1.96 * .se.fit),
+  #   upper = exp(1) ^ (.fitted + 1.96 * .se.fit), 
+  #   .fitted = exp(1) ^ .fitted
+  # )
 
 # write_rds(plake_smp, here::here("Results", 
 #                                 "trps_lake_grid.rds"))
@@ -378,6 +394,9 @@ ggplot() +
     axis.ticks = element_blank(),
     strip.background = element_blank()
   )
+
+glimpse(pred)
+
 ggplot() +
   geom_raster(data = pred, aes(x = x, y = y, fill = .fitted)) +
   geom_sf(data = plake_utm, fill = NA, colour = "black") +
@@ -385,6 +404,9 @@ ggplot() +
   # geom_point(data = fdepth, aes(x = os_x, y = os_y), size = 0.5) +
   # coord_fixed() +
   scale_fill_viridis_c(na.value = NA, option = "B", 
+                       name = "Active Metabolism <br>(mg O<sub>2</sub> 
+                       kg <sup>-1</sup> h<sup>-1</sup>)") + 
+  scale_colour_viridis_c(na.value = NA, option = "B", 
                        name = "Active Metabolism <br>(mg O<sub>2</sub> 
                        kg <sup>-1</sup> h<sup>-1</sup>)") + 
   theme_bw(
@@ -440,20 +462,27 @@ plake_bnd_ls <- lapply(nr,
                                                 list(f = rep(0, 
                                                              length(plake_bnd_ls[[n]]$x)))))
 # head(ful_rmr_edit)
-# east_basin <- ful_rmr_edit %>% 
-#   filter(fish_basin %in% "East")
+east_basin <- ful_rmr_edit %>%
+  filter(fish_basin %in% "East")
+
+descdist(east_basin$mean_rmr)
+hist(east_basin$mean_rmr)
 m1 <- gam(mean_rmr ~ s(x, y, bs = "so",
                        # by = fish_basin,
                        xt = list(bnd = plake_bnd_ls,
                                  nmax = 1500)), 
-          method = "REML", control = list(nthreads = 6, 
-                                          ncv.threads = 4), 
-          # family = Gamma(link = "log"),
+          method = "REML", 
+          control = list(nthreads = 6, 
+                         ncv.threads = 4), 
+          family = Gamma(link = "log"),
           data = ful_rmr_edit, 
           knots = plake_intesects_points
 )
 
+
 summary(m1)
+AIC(m1)
+beepr::beep()
 # summary(m2)
 # draw(m1)
 
@@ -463,10 +492,14 @@ summary(m1)
 # 
 # plot(m1, asp = 1, se = FALSE, scheme = 2, main = "")
 
-# plake_sample <- plake_utm
-#   st_make_grid(cellsize = 10, square = TRUE, what = "centers") %>% 
-#   st_as_sf() 
-# 
+plake_sample <- plake_utm %>% 
+  st_make_grid(cellsize = 5, square = TRUE, what = "centers") %>%
+  st_as_sf()
+
+# plake_sample_2 <- plake_utm %>% 
+#   st_make_grid(cellsize = 20, square = TRUE, what = "centers") %>%
+#   st_as_sf()
+
 # # plake_sample <- plake_utm %>% 
 # #   st_sample(
 # #    size = 75000 
@@ -474,23 +507,40 @@ summary(m1)
 # #   st_as_sf()
 # 
 # 
-# st_geometry(plake_sample) <- "geometry"
-# 
-# plake_sample <- st_intersection(plake_sample, plake_utm) %>% 
-#   dplyr::select(geometry)
+st_geometry(plake_sample) <- "geometry"
+st_geometry(plake_sample_2) <- "geometry"
+
+glimpse(plake_sample)
+
+plake_sample <- st_intersection(plake_sample, plake_utm) %>%
+  dplyr::select(geometry)
+plake_sample_2 <- st_intersection(plake_sample_2, plake_utm) %>%
+  dplyr::select(geometry)
 # # plot(plake_sample)
 # 
 # 
 # 
-# plake_smp <- crossing(
-#   plake_sample %>% 
-#   mutate(
-#     x = st_coordinates(.)[,"X"], 
-#     y = st_coordinates(.)[,"Y"], 
-#   ) %>% 
-#   st_drop_geometry(),
+plake_smp <- 
+  # crossing(
+  plake_sample %>%
+  mutate(
+    x = st_coordinates(.)[,"X"],
+    y = st_coordinates(.)[,"Y"],
+  ) %>%
+  st_drop_geometry()
+plake_smp_2 <- 
+  # crossing(
+  plake_sample_2 %>%
+  mutate(
+    x = st_coordinates(.)[,"X"],
+    y = st_coordinates(.)[,"Y"],
+  ) %>%
+  st_drop_geometry()
+
+glimpse(plake_smp)
+glimpse(plake_smp_2)
 #   fish_basin = unique(ful_rmr_edit$fish_basin)
-# ) %>% 
+# ) %>%
 #   dplyr::select(fish_basin, x, y)
 
 
@@ -500,22 +550,30 @@ summary(m1)
 # plake_smp <- read_rds(here::here("results", 
 #                                  "trps_lake_grid.rds"))
 glimpse(plake_smp)
-
-plake_smp_single <- plake_smp %>% 
-  filter(fish_basin %in% "East") %>% 
-  dplyr::select(-fish_basin)
+ggplot() +
+  geom_sf(data = plake_sample)
+# plake_smp_single <- plake_smp %>% 
+#   filter(fish_basin %in% "East") %>% 
+#   dplyr::select(-fish_basin)
 
 gc()
 glimpse(plake_smp_single)
-pred_soap <- augment(m1, newdata = plake_smp_single) 
-  # mutate(
-  #   lower = exp(1) ^ (.fitted - 1.96 * .se.fit),
-  #   upper = exp(1) ^ (.fitted + 1.96 * .se.fit), 
-  #   .fitted = exp(1) ^ .fitted
-  # )
+pred_soap <- augment(m1, newdata = plake_smp) 
+beepr::beep()
+pred_soap <- pred_soap %>%
+  mutate(
+  lower = exp(1) ^ (.fitted - 1.96 * .se.fit),
+  upper = exp(1) ^ (.fitted + 1.96 * .se.fit),
+  .fitted_tran = exp(1) ^ .fitted
+)
+pred_soap_1 <- pred_soap %>% 
+  filter(.fitted_tran > 0 & .fitted_tran < 200)
 
+summary(pred_soap_1$.fitted_tran)
+write_rds(pred_soap_1, file = here::here("Saved Data", 
+                                         "10_m_predict_sf_gam_gamma.rds"))
 ggplot() +
-  geom_raster(data = pred_soap, aes(x = x, y = y, fill = .fitted)) +
+  geom_raster(data = pred_soap_1, aes(x = x, y = y, fill = .fitted_tran)) +
   geom_sf(data = plake_utm, fill = NA, colour = "black") +
   # facet_wrap(~ fish_basin) + 
   # geom_point(data = fdepth, aes(x = os_x, y = os_y), size = 0.5) +
@@ -553,7 +611,7 @@ p1
 
 ggsave(filename = here::here("Plots",
                              "TRPS and SF GAMs",
-                             "sf_no_basin.png"), plot = p1,
+                             "sf_no_basin_10_gamma.png"), plot = p1,
        width = 5.5, height = 11)
 # write_rds(plake_smp, here::here("Results", 
 #                                 "trps_lake_grid.rds"))
