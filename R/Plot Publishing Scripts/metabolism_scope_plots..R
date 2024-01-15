@@ -26,6 +26,8 @@ a$layers[[1]] <- NULL
 a$layers[[1]] <- NULL
 a$layers[[1]] <- NULL
 a$layers[[1]] <- NULL
+a$layers[[1]] <- NULL
+b$layers[[1]] <- NULL
 b$layers[[1]] <- NULL
 b$layers[[1]] <- NULL
 b$layers[[1]] <- NULL
@@ -44,7 +46,7 @@ p <- a / b +
 p
 ggsave(plot = p, filename = here("plots",
                                   "Combined metabolic rates",
-                                  "metabolism_and_scope_plot_wo_grey_CORRECT_pt_jan_sfa.png"), 
+                                  "metabolism_and_scope_plot_wo_grey_CORRECT_pt_jan.png"), 
        width = 11,
        height = 7 * 2)
 p1 <- c / d + 
@@ -56,7 +58,7 @@ p1 <- c / d +
 p1
 ggsave(plot = p1, filename = here("plots",
                                   "Combined metabolic rates",
-                                  "metabolism_and_scope_plot_CORRECT_pt_jan_sfa.png"), 
+                                  "metabolism_and_scope_plot_CORRECT_pt_jan.png"), 
        width = 11,
        height = 7 * 2)
 
@@ -72,7 +74,7 @@ p2 <- a / b +
 # p2
 ggsave(plot = p2, filename = here("plots",
                                  "Combined metabolic rates",
-                                 "metabolism_and_scope_plot_wo_grey_CORRECT_jan_sfa.png"), 
+                                 "metabolism_and_scope_plot_wo_grey_CORRECT_jan.png"), 
        width = 11,
        height = 7 * 2)
 
@@ -89,9 +91,14 @@ p3 <- c / d +
     tag_suffix = ")"
   )
 
-p3
+# p3
 ggsave(plot = p3, filename = here("plots",
                                   "Combined metabolic rates",
-                                  "metabolism_and_scope_plot_CORRECT_jan_sfa.png"), 
+                                  "metabolism_and_scope_plot_CORRECT_jan.png"), 
+       width = 11,
+       height = 7 * 2)
+ggsave(plot = p3, filename = here("plots",
+                                  "Combined metabolic rates",
+                                  "metabolism_and_scope_plot_CORRECT_jan.pdf"), 
        width = 11,
        height = 7 * 2)

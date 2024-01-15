@@ -256,15 +256,15 @@ ggplot(data = sum_temp_comb, aes(x = doy,
   #            ) +
 
   geom_text(
-    aes(x = xmin + 33, y = 13, label = season),
+    aes(x = xmin + 31, y = 13, label = season),
     data = rect_summer,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 15, y = 13, label = season),
+    aes(x = xmin + 17.5, y = 13, label = season),
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 5, y = 13, label = season),
+    aes(x = xmin + 3.75, y = 13, label = season),
     data = rect_winter_dec,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   # geom_linerange(aes(ymin = mean_fish_temp - sem,

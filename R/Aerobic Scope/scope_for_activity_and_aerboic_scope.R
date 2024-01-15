@@ -198,7 +198,7 @@ ggplot() +
             alpha = 0.75,
             inherit.aes = FALSE) +
   geom_text(
-    aes(x = xmin + 33, y = 161.25, label = season),
+    aes(x = xmin + 31, y = 161.25, label = season),
     data = rect_summer,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
@@ -206,7 +206,7 @@ ggplot() +
     data = rect_winter,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_text(
-    aes(x = xmin + 5, y = 161.25, label = season),
+    aes(x = xmin + 3.75, y = 161.25, label = season),
     data = rect_winter_dec,
     size = 5, vjust = 0, hjust = 0, check_overlap = TRUE) +
   geom_point(data = mean_soa_as, aes(x = doy, y = mean, colour = type), 
@@ -242,7 +242,7 @@ ggplot() +
        y = expression(paste("Metabolic Rate (mg", 
                             O[2]," ", kg^-1, " ", h^-1, ")"))) -> p 
 
-p
+# p
 write_rds(p, here("Plot Objects", 
                   "Scope_of_activity_and_AS_gamm_plot_jan.rds"))
 
@@ -251,4 +251,4 @@ ggsave(plot = p, filename = here("plots",
                                  "Daily GAMM Plots", 
                                  "Scope_of_activity_and_AS_gamm.png"), 
        width = 11,
-       height = 8.5)
+       height = 7)
