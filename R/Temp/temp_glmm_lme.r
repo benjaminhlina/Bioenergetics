@@ -105,19 +105,19 @@ glance(m)
 glance(m1)
 
 model_fit <- glance(m1)
-main_effects %>%
-openxlsx::write.xlsx(here::here("results",
-                                "Temp results",
-                                "lmer_main_effect_m1_basin_season_temp.xlsx"))
-ind_effects %>%
-openxlsx::write.xlsx(here::here("results",
-                                "Temp results",
-                                "lmer_ind_effects_m1_basin_season_temp.xlsx"))
-
-model_fit %>%
-  openxlsx::write.xlsx(here::here("results",
-                                  "Temp results",
-                                  "lmer_model_fit_m1_basin_season_temp.xlsx"))
+# main_effects %>%
+# openxlsx::write.xlsx(here::here("results",
+#                                 "Temp results",
+#                                 "lmer_main_effect_m1_basin_season_temp.xlsx"))
+# ind_effects %>%
+# openxlsx::write.xlsx(here::here("results",
+#                                 "Temp results",
+#                                 "lmer_ind_effects_m1_basin_season_temp.xlsx"))
+# 
+# model_fit %>%
+#   openxlsx::write.xlsx(here::here("results",
+#                                   "Temp results",
+#                                   "lmer_model_fit_m1_basin_season_temp.xlsx"))
 # multiple comparissions ----
 
 multi_comp <- emmeans(m1, pairwise ~ fish_basin * season, 
